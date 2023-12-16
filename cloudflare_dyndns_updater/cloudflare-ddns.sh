@@ -4,11 +4,14 @@
 # It compares the current external (WAN) IP address of the machine with the DNS IP record of the domain.
 # If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
 
-# To automate, add the following to crontab:
-#    #Comment: Track changes to public IP and update Cloudflare DNS record.
+# Save the script here: /usr/local/bin/cloudflare-ddns.sh
+# Set permissions: "sudo chmod 100 /usr/local/bin/cloudflare-ddns.sh"
+
+# To automatically execute it every 5 minuites, add the following to crontab ("sudo crontab -e"):
+#    #Track changes to public IP and update Cloudflare DNS record.
 #    */5 * * * * /usr/local/bin/cloudflare-ddns.sh
 
-# Initial data
+# Set initial data
 ## API token; e.g. FErgdfflw3wr59dfDce33-3D43dsfs3sddsFoD3
 api_token="<your-cloudflare-api-token>"
 
@@ -21,6 +24,9 @@ zone_name="<your-cloudflare-domain>"
 ## the dns record (sub-domain) that needs to be modified; e.g. sub.example.com
 dns_record="<your-full-cloudflare-sub-domain>"
 
+#####                                        #####
+#####  DO NOT EDIT ANYTHING BELOW THIS LINE  #####
+#####                                        ##### 
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
