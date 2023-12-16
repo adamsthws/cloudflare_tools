@@ -11,7 +11,8 @@
 #    #Track changes to public IP and update Cloudflare DNS record.
 #    */5 * * * * /usr/local/bin/cloudflare-ddns.sh
 
-# Set initial data
+#####  SET INITIAL DATA   #####
+
 ## API token; e.g. FErgdfflw3wr59dfDce33-3D43dsfs3sddsFoD3
 api_token="<your-cloudflare-api-token>"
 
@@ -24,9 +25,7 @@ zone_name="<your-cloudflare-domain>"
 ## the dns record (sub-domain) that needs to be modified; e.g. sub.example.com
 dns_record="<your-full-cloudflare-sub-domain>"
 
-#####                                        #####
 #####  DO NOT EDIT ANYTHING BELOW THIS LINE  #####
-#####                                        ##### 
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
