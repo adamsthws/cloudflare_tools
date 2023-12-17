@@ -1,31 +1,47 @@
 #!/bin/bash
 
+# WHAT IT DOES
 # This script acts as a DYNdns updater for a domain on Cloudflare.
 # It compares the current external (WAN) IP address of the machine with the DNS IP record of the domain.
 # If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
 
-# Save the script here: /usr/local/bin/cloudflare-ddns.sh
-# Set permissions: "sudo chmod 100 /usr/local/bin/cloudflare-ddns.sh"
+# SCRIPT LOCATION
+# Save the script here: /usr/local/bin/cloudflare-ddns.sh.
+# Set permissions: "sudo chmod 100 /usr/local/bin/cloudflare-ddns.sh".
 
-# To automatically execute it every 5 minuites, add the following to crontab ("sudo crontab -e"):
-#    #Track changes to public IP and update Cloudflare DNS record.
-#    */5 * * * * /usr/local/bin/cloudflare-ddns.sh
+# AUTO-RUN
+# To automatically execute it every 10 minuites, add the following cron-job ("sudo crontab -e"):
+#     #Track changes to public IP and update Cloudflare DNS record.
+#     */10 * * * * /usr/local/bin/cloudflare-ddns.sh
+
+# NOTIFICATIONS
+# When script is executed manually (e.g. from command line)...
+#     Success - Result and IPv4 address is output to terminal.
+#     Error - Result and reason for failure is output to terminal.
+# When executed as a cron-job...
+#     Success - Will remain silent / no notification.
+#     Error - The admin will be mailed.
+#     Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
+
 
 #####  SET INITIAL DATA   #####
 
-## API token; e.g. FErgdfflw3wr59dfDce33-3D43dsfs3sddsFoD3
+
+## The API token; e.g. FErgdfflw3wr59dfDce33-3D43dsfs3sddsFoD3
 api_token="<your-cloudflare-api-token>"
 
-## the email address associated with the Cloudflare account; e.g. email@gmail.com
+## The email address associated with the Cloudflare account; e.g. email@gmail.com
 email="<your-cloudflare-email-address>"
 
-## the zone (domain) should be modified; e.g. example.com
+## The zone (TLD domain); e.g. example.com
 zone_name="<your-cloudflare-domain>"
 
-## the dns record (sub-domain) that needs to be modified; e.g. sub.example.com
+## The dns record (Full sub-domain) to be modified; e.g. sub.example.com
 dns_record="<your-full-cloudflare-sub-domain>"
 
+
 #####  DO NOT EDIT ANYTHING BELOW THIS LINE  #####
+
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
@@ -48,11 +64,11 @@ if [[ $dns_record == *.* ]]; then
         echo -e "Script Error (Cloudflare DYNdns updater script) \nThe Zone in DNS Record does not match the defined Zone; check it and try again."
         exit 1
     fi
-# If the dns_record (subdomain) is not complete and contains invalid characters
+# check if the dns_record (subdomain) is not complete and contains invalid characters
 elif ! [[ $dns_record =~ ^[a-zA-Z0-9-]+$ ]]; then
     echo -e "Script Error (Cloudflare DYNdns updater script) \nThe DNS Record contains illegal charecters, i.e., @, %, *, _, etc.; fix it and run the script again."
     exit 1
-# If the dns_record (subdomain) is not complete, complete it
+# if the dns_record (subdomain) is not complete, complete it
 else
     dns_record="$dns_record.$zone_name"
 fi
@@ -60,7 +76,7 @@ fi
 # Check if DNS Records Exists
 check_record_ipv4=$(dig -t a +short ${dns_record} | tail -n1)
 
-# Get the basic data
+# get the basic data
 ipv4=$(curl -s -X GET https://checkip.amazonaws.com)
 user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
                -H "Authorization: Bearer $api_token" \
@@ -87,9 +103,9 @@ if [ $user_id ]; then
                    -H "Authorization: Bearer $api_token" \
               | jq -r '{"result"}[] | .[0] | .id'
              )
-    # Check if the zone ID is avilable
+    # check if the zone ID is avilable
     if [ $zone_id ]; then
-        # Check if there is an IP
+        # check if there is IPv4
         if [ $ipv4 ]; then
             # Check if A Record exists
             if [ -z "${check_record_ipv4}" ]; then
@@ -102,22 +118,28 @@ if [ $user_id ]; then
                                    -H "Authorization: Bearer $api_token"
                              )
             dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
-            # If current IPv4 is different than the actual IPv4
+            # Check if the machine's IPv4 is different to the Cloudflare IPv4
             if [ $dns_record_a_ip != $ipv4 ]; then
-                # Change the A record
+                # If IPv4 is different, update the A record
                 curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$(echo $dns_record_a_id | jq -r '{"result"}[] | .[0] | .id')" \
                      -H "Content-Type: application/json" \
                      -H "X-Auth-Email: $email" \
                      -H "Authorization: Bearer $api_token" \
                      --data "{\"type\":\"A\",\"name\":\"$dns_record\",\"content\":\"$ipv4\",\"ttl\":1,\"proxied\":false}" \
                 | jq -r '.errors'
-                # If running as chron stay silent. Otherwise output result.
-                if [ -t 1 ] ; then
+                # Wait for 180 seconds to allow the DNS change to propogate / become active
+                sleep 180
+                # Check the IPv4 change has been applied sucessfully
+                if [ $check_record_ipv4 != $ipv4 ]; then
+                    echo -e "Script Error (Cloudflare DYNdns updater script) \nA change of IP was attempted but was unsuccessful. \nCurrent IP: $ipv4 \nCloudflare IP: $check_record_ipv4"
+                    exit 1
+                # Output result
+                elif [ -t 1 ] ; then
                     echo -e "Script Notification (Cloudflare DYNdns updater script) \nUpdated: IPv4 successfully set on Cloudflare with the value of: $ipv4."
                 fi
                 exit 0
             else
-                # If running as chron stay silent. Otherwise output result.
+                # Output result
                 if [ -t 1 ] ; then
                     echo -e "Script Notification (Cloudflare DYNdns updater script) \nNo change: The current IPv4 address matches the IP at Cloudflare: $ipv4."
                 fi
@@ -130,6 +152,9 @@ if [ $user_id ]; then
         exit 1
     fi
 else
+    echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
+    exit 1
+fi
     echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
     exit 1
 fi
