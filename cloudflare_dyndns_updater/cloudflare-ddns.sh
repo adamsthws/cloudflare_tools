@@ -133,13 +133,13 @@ if [ $user_id ]; then
                 if [ $check_record_ipv4 != $ipv4 ]; then
                     echo -e "Script Error (Cloudflare DYNdns updater script) \nA change of IP was attempted but was unsuccessful. \nCurrent IP: $ipv4 \nCloudflare IP: $check_record_ipv4"
                     exit 1
-                # Output result
+                # Output result (stays silent if executed from cron-job)
                 elif [ -t 1 ] ; then
                     echo -e "Script Notification (Cloudflare DYNdns updater script) \nUpdated: IPv4 successfully set on Cloudflare with the value of: $ipv4."
                 fi
                 exit 0
             else
-                # Output result
+                # Output result (stays silent if executed from cron-job)
                 if [ -t 1 ] ; then
                     echo -e "Script Notification (Cloudflare DYNdns updater script) \nNo change: The current IPv4 address matches the IP at Cloudflare: $ipv4."
                 fi
