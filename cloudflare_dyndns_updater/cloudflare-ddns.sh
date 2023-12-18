@@ -136,14 +136,15 @@ if [ $user_id ]; then
                 # Output result (stays silent if executed from cron-job)
                 elif [ -t 1 ] ; then
                     echo -e "Script Notification (Cloudflare DYNdns updater script) \nUpdated: IPv4 successfully set on Cloudflare with the value of: $ipv4."
+                    exit 0
                 fi
-                exit 0
+
             else
                 # Output result (stays silent if executed from cron-job)
                 if [ -t 1 ] ; then
                     echo -e "Script Notification (Cloudflare DYNdns updater script) \nNo change: The current IPv4 address matches the IP at Cloudflare: $ipv4."
+                    exit 0
                 fi
-                exit 0
             fi
         fi
 
