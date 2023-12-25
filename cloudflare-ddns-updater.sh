@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# Enable Bash strict mode
+# https://olivergondza.github.io/2019/10/01/bash-strict-mode.html
+set -euo pipefail
+trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 # WHAT IT DOES
 # This script acts as a DYNdns updater for a domain on Cloudflare.
