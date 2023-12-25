@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# Enable Bash strict mode
+# https://olivergondza.github.io/2019/10/01/bash-strict-mode.html
+set -euo pipefail
+trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 # WHAT IT DOES
 # This script acts as a DYNdns updater for a domain on Cloudflare.
@@ -45,14 +50,14 @@ dns_record="<your-full-cloudflare-sub-domain>"
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
-    echo -e "Script Error (Cloudflare DYNdns updater script) \nThe script is already running."
+    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe script is already running."
     exit 1
 fi
 
 # Check if jq is installed
 check_jq=$(which jq)
 if [ -z "${check_jq}" ]; then
-    echo -e "Script Error (Cloudflare DYNdns updater script) \njq is not installed. Install it by 'sudo apt install jq'."
+    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \njq is not installed. Install it by 'sudo apt install jq'."
     exit 1
 fi
 
@@ -61,12 +66,12 @@ fi
 if [[ $dns_record == *.* ]]; then
     # if the zone_name field (domain) is not in the dns_record
     if [[ $dns_record != *.$zone_name ]]; then
-        echo -e "Script Error (Cloudflare DYNdns updater script) \nThe Zone in DNS Record does not match the defined Zone; check it and try again."
+        >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe Zone in DNS Record does not match the defined Zone; check it and try again."
         exit 1
     fi
 # check if the dns_record (subdomain) is not complete and contains invalid characters
 elif ! [[ $dns_record =~ ^[a-zA-Z0-9-]+$ ]]; then
-    echo -e "Script Error (Cloudflare DYNdns updater script) \nThe DNS Record contains illegal charecters, i.e., @, %, *, _, etc.; fix it and run the script again."
+    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe DNS Record contains illegal charecters, i.e., @, %, *, _, etc.; fix it and run the script again."
     exit 1
 # if the dns_record (subdomain) is not complete, complete it
 else
@@ -91,7 +96,7 @@ if [ $ipv4 ]; then
         echo -e "Current public IPv4 address: $ipv4"
     fi
 else
-    echo -e "Script Error (Cloudflare DYNdns updater script) \nUnable to get any public IPv4 address."
+    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nUnable to get any public IPv4 address."
     exit 1
 fi
 
@@ -109,7 +114,7 @@ if [ $user_id ]; then
         if [ $ipv4 ]; then
             # Check if A Record exists
             if [ -z "${check_record_ipv4}" ]; then
-                echo -e "Script Error (Cloudflare DYNdns updater script) \nNo A Record is setup for ${dns_record}."
+                >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nNo A Record is setup for ${dns_record}."
                 exit 1
             fi
             dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$dns_record"  \
@@ -131,7 +136,7 @@ if [ $user_id ]; then
                 sleep 180
                 # Check the IPv4 change has been applied sucessfully
                 if [ $check_record_ipv4 != $ipv4 ]; then
-                    echo -e "Script Error (Cloudflare DYNdns updater script) \nA change of IP was attempted but was unsuccessful. \nCurrent IP: $ipv4 \nCloudflare IP: $check_record_ipv4"
+                    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nA change of IP was attempted but was unsuccessful. \nCurrent IP: $ipv4 \nCloudflare IP: $check_record_ipv4"
                     exit 1
                 # Output result (stays silent if executed from cron-job)
                 elif [ -t 1 ] ; then
@@ -149,13 +154,10 @@ if [ $user_id ]; then
         fi
 
     else
-        echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with getting the Zone ID (sub-domain) or the email address (username)."
+        >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with getting the Zone ID (sub-domain) or the email address (username)."
         exit 1
     fi
 else
-    echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
-    exit 1
-fi
-    echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
+    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
     exit 1
 fi
