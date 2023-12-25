@@ -156,6 +156,3 @@ else
     echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
     exit 1
 fi
-    echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
-    exit 1
-fi
