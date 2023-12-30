@@ -8,22 +8,6 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 ## Import enviroment variables (api key etc)
 source .env
 
-## API token
-## (imported from .env file)
-api_token=$API_KEY
-
-## The email address associated with the Cloudflare account; e.g. email@gmail.com
-## (imported from .env file)
-email=$EMAIL
-
-## the zone (domain) should be modified; e.g. example.com
-## (imported from .env file)
-zone_name=$ZONE_NAME
-
-## the dns record (sub-domain) that needs to be modified; e.g. sub.example.com
-## (imported from .env file)
-dns_record=$DNS_RECORD
-
 # Debug function to print messages if debug level is 1 or 2
 debug() {
     if [[ $DEBUG_LEVEL -gt 0 ]]; then
@@ -46,38 +30,45 @@ fi
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
     error "Error: The script is already running."
+else
+    debug "Check 1/5 Passed. Script is not already running, proceeding..."
 fi
 
 # Check if jq is installed
 check_jq=$(which jq)
 if [ -z "${check_jq}" ]; then
     error "Error: jq is not installed."
+else
+    debug "Check 2/5 Passed. 'jq' is installed, proceeding..."
 fi
 
 # Check the subdomain
 # Check if the dns_record field (subdomain) contains dot
-if [[ $dns_record == *.* ]]; then
+if [[ $DNS_RECORD == *.* ]]; then
     # if the zone_name field (domain) is not in the dns_record
-    if [[ $dns_record != *.$zone_name ]]; then
-        error "Error: The Zone in DNS Record does not match the defined Zone."
+    if [[ $DNS_RECORD != *.$ZONE_NAME ]]; then
+        error "Error: The Zone in DNS_RECORD does not match the defined Zone in ZONE_NAME."
+    else
+        debug "Check 3/5 Passed. DNS zone to check/update: $DNS_RECORD, proceeding..."
     fi
 # check if the dns_record (subdomain) is not complete and contains invalid characters
-elif ! [[ $dns_record =~ ^[a-zA-Z0-9-]+$ ]]; then
+elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
     error "Error: The DNS Record contains illegal charecters - e.g: ., @, %, *, _"
 # if the dns_record (subdomain) is not complete, complete it
 else
-    dns_record="$dns_record.$zone_name"
+    DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
+    debug debug "Check 3/5 Passed. DNS zone to check/update: $DNS_RECORD, proceeding..."
 fi
 
 # Get the DNS Record IP
-check_record_ipv4=$(dig -t a +short ${dns_record} | tail -n1)
+check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1)
 
 # Get the machine's WAN IP
 ipv4=$(curl -s -X GET https://checkip.amazonaws.com)
 
 # Get Cloudflare User ID
 user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
-            -H "Authorization: Bearer $api_token" \
+            -H "Authorization: Bearer $API_KEY" \
             -H "Content-Type:application/json" \
             | jq -r '{"result"}[] | .id'
         )
@@ -86,38 +77,43 @@ user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verif
 ##### MAKE THIS A MORE THOROUGH CHECK
 if ! [ $ipv4 ]; then
     error "Error: Unable to get any public IPv4 address."
+else
+    debug "Check 4/5 Passed. Machine's public (WAN) IP is: $ipv4, proceeding..."
 fi
 
 # Check if the user API is valid and the email is correct
 if [ $user_id ]; then
-    zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$zone_name&status=active" \
+    debug "Check 5/5 passed. Cloudflare user ID is: $user_id, proceeding..."
+    zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
-                -H "X-Auth-Email: $email" \
-                -H "Authorization: Bearer $api_token" \
+                -H "X-Auth-Email: $EMAIL" \
+                -H "Authorization: Bearer $API_KEY" \
                 | jq -r '{"result"}[] | .[0] | .id'
             )
     # check if the zone ID is avilable
     if [ $zone_id ]; then
+        debug "Check 6/5 passed. Cloudflare Zone ID is: $zone_id, proceeding..."
         # check if there is IPv4
-        if [ $ipv4 ]; then
+        if [ $ipv4 ]; then                       #### THIS IS DUPLICATED FROM ABOVE #####
             # Check if A Record exists
             if [ -z "${check_record_ipv4}" ]; then
-                error "Error: No A Record is setup for ${dns_record}."
+                error "Error: No A Record is setup for ${DNS_RECORD}."
             fi
             dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$dns_record"  \
                             -H "Content-Type: application/json" \
-                            -H "X-Auth-Email: $email" \
-                            -H "Authorization: Bearer $api_token"
+                            -H "X-Auth-Email: $EMAIL" \
+                            -H "Authorization: Bearer $API_KEY"
                             )
             dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
+            debug "Check 7/5 passed. Cloudflare Domain IP is: $check_record_ipv4, proceeding..."
             # Check if the machine's IPv4 is different to the Cloudflare IPv4
             if [ $dns_record_a_ip != $ipv4 ]; then
                 # If different, update the A record
                 curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$(echo $dns_record_a_id | jq -r '{"result"}[] | .[0] | .id')" \
                         -H "Content-Type: application/json" \
-                        -H "X-Auth-Email: $email" \
-                        -H "Authorization: Bearer $api_token" \
-                        --data "{\"type\":\"A\",\"name\":\"$dns_record\",\"content\":\"$ipv4\",\"ttl\":1,\"proxied\":false}" \
+                        -H "X-Auth-Email: $EMAIL" \
+                        -H "Authorization: Bearer $API_KEY" \
+                        --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$ipv4\",\"ttl\":1,\"proxied\":false}" \
                 | jq -r '.errors'
                 # Wait for 180 seconds to allow the DNS change to propogate / become active
                 sleep 180
