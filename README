@@ -13,7 +13,7 @@ Set permissions: "sudo chmod 600 /usr/local/bin/cloudflare-ddns.sh".
 
 AUTO-RUN
 To automatically execute it every 10 minuites, add the following cron-job ("sudo crontab -e"):
-     #Track changes to public IP and update Cloudflare DNS record.
+    #Track changes to public IP and update Cloudflare DNS record.
      */10 * * * * /usr/local/bin/cloudflare-ddns.sh
 
 NOTIFICATIONS

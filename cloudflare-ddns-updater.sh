@@ -24,9 +24,32 @@ zone_name=$ZONE_NAME
 ## (imported from .env file)
 dns_record=$DNS_RECORD
 
+# Notification message
+error_msg="Script Error (Cloudflare DYNdns updater script)."
+success_msg="Script Success (Cloudflare DYNdns updater script)."
+
+# Debug function to print messages based on debug level
+debug() {
+    if [[ $DEBUG_LEVEL -eq 2 ]]; then
+        echo "$1"
+    elif [[ $DEBUG_LEVEL -gt 0 ]]; then
+        echo "$1" >&2
+    fi
+}
+
+# Error function to print errors
+error() {
+    echo -e "$1" >&2
+}
+
+# Set debug mode if debug level > 0
+if [[ $DEBUG_LEVEL -gt 0 ]]; then
+    set -x
+fi
+
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
-    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe script is already running."
+    error "The script is already running."
     exit 1
 fi
 
@@ -123,7 +146,7 @@ if [ $user_id ]; then
             else
                 # Output result (stays silent if executed from cron-job)
                 if [ -t 1 ] ; then
-                    echo -e "Script Notification (Cloudflare DYNdns updater script) \nNo change: The current IPv4 address matches the IP at Cloudflare: $ipv4."
+                    echo -e "Script Success (Cloudflare DYNdns updater script) \nNo change: The current IPv4 address matches the IP at Cloudflare: $ipv4."
                     exit 0
                 fi
             fi
