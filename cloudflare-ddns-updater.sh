@@ -28,25 +28,24 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 #     Error - The admin will be mailed.
 #     Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
 
+## Import enviroment variables (api key etc)
+source .env
 
-#####  SET INITIAL DATA   #####
-
-
-## The API token; e.g. FErgdfflw3wr59dfDce33-3D43dsfs3sddsFoD3
-api_token="<your-cloudflare-api-token>"
+## API token 
+## (imported from .env file)
+api_token=$API_KEY
 
 ## The email address associated with the Cloudflare account; e.g. email@gmail.com
-email="<your-cloudflare-email-address>"
+## (imported from .env file)
+email=$EMAIL
 
-## The zone (TLD domain); e.g. example.com
-zone_name="<your-cloudflare-domain>"
+## the zone (domain) should be modified; e.g. example.com
+## (imported from .env file)
+zone_name=$ZONE_NAME
 
-## The dns record (Full sub-domain) to be modified; e.g. sub.example.com
-dns_record="<your-full-cloudflare-sub-domain>"
-
-
-#####  DO NOT EDIT ANYTHING BELOW THIS LINE  #####
-
+## the dns record (sub-domain) that needs to be modified; e.g. sub.example.com
+## (imported from .env file)
+dns_record=$DNS_RECORD
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
