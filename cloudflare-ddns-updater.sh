@@ -26,7 +26,7 @@ dns_record=$DNS_RECORD
 
 # Debug function to print messages if debug level is 1 or 2
 debug() {
-    if [[ $DEBUG_LEVEL -gt 1 ]]; then
+    if [[ $DEBUG_LEVEL -gt 0 ]]; then
         echo "$1"
     fi
 }
