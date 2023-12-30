@@ -83,7 +83,7 @@ fi
 
 # Check if the user API is valid and the email is correct
 if [ $user_id ]; then
-    debug "Check 5/5 passed. Cloudflare user ID is: $user_id, proceeding..."
+    debug "Check 5/5 passed. Cloudflare User ID is: $user_id, proceeding..."
     zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
                 -H "X-Auth-Email: $EMAIL" \
@@ -99,7 +99,7 @@ if [ $user_id ]; then
             if [ -z "${check_record_ipv4}" ]; then
                 error "Error: No A Record is setup for ${DNS_RECORD}."
             fi
-            dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$dns_record"  \
+            dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD"  \
                             -H "Content-Type: application/json" \
                             -H "X-Auth-Email: $EMAIL" \
                             -H "Authorization: Bearer $API_KEY"
