@@ -129,17 +129,18 @@ if [ $dns_record_a_ip != $ipv4 ]; then
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$ipv4\",\"ttl\":1,\"proxied\":false}" \
     | jq -r '.errors'
     # Wait for 180 seconds to allow the DNS change to propogate / become active
-    sleep 180
+    sleep_seconds=180
+    debug "Paused for $sleep_seconds seconds. (Allows IP update to propogate)."
+    sleep $sleep_seconds
     # Check the IPv4 change has been applied sucessfully
     if [ $check_record_ipv4 != $ipv4 ]; then
         error "Error: A change of IP was attempted but was unsuccessful. Current IP: $ipv4 Cloudflare IP: $check_record_ipv4"
     else
-        debug "Success: IPv4 updated on Cloudflare with the new value of: $ipv4."
+        debug "Success: IPv4 updated on Cloudflare with the new value of: $check_record_ipv4."
         exit 0
     fi
 else
-    debug "Success: (No change) The current IPv4 address matches the IP at Cloudflare: $ipv4."
+    debug "Success: (No change) The machine IPv4 matches the domain IPv4: $check_record_ipv4."
     exit 0
     fi
 fi
-
