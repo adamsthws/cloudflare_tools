@@ -5,33 +5,10 @@
 set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-# WHAT IT DOES
-# This script acts as a DYNdns updater for a domain on Cloudflare.
-# It compares the current external (WAN) IP address of the machine with the DNS IP record of the domain.
-# If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
-
-# SCRIPT LOCATION
-# Save the script here: /usr/local/bin/cloudflare-ddns.sh.
-# Set permissions: "sudo chmod 100 /usr/local/bin/cloudflare-ddns.sh".
-
-# AUTO-RUN
-# To automatically execute it every 10 minuites, add the following cron-job ("sudo crontab -e"):
-#     #Track changes to public IP and update Cloudflare DNS record.
-#     */10 * * * * /usr/local/bin/cloudflare-ddns.sh
-
-# NOTIFICATIONS
-# When script is executed manually (e.g. from command line)...
-#     Success - Result and IPv4 address is output to terminal.
-#     Error - Result and reason for failure is output to terminal.
-# When executed as a cron-job...
-#     Success - Will remain silent / no notification.
-#     Error - The admin will be mailed.
-#     Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
-
 ## Import enviroment variables (api key etc)
 source .env
 
-## API token 
+## API token
 ## (imported from .env file)
 api_token=$API_KEY
 
