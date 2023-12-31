@@ -5,9 +5,6 @@
 set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-## Import enviroment variables (api key etc)
-source "$(dirname "$0")/.env"
-
 # Debug function to print messages if debug level is 1 or 2
 debug() {
     if [[ $DEBUG_LEVEL -gt 0 ]]; then
@@ -33,6 +30,10 @@ if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
 else
     debug "Check 1 (of 8) passed. Script is not already running, proceeding..."
 fi
+
+## Import enviroment variables (api key etc)
+####### Add a check and debug message for this ######
+source "$(dirname "$0")/.env"
 
 # Check if jq is installed
 check_jq=$(which jq)

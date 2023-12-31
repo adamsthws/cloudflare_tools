@@ -1,5 +1,5 @@
 Name: cloudflare-ddns-updater.sh
-Description: A Dynamic DNS (DDNS) IP updater for Cloudflare domains.
+Description: Updates a Cloudflare DNS A record with the external IP of the source machine
 Author: Adam Matthews
 
 WHAT IT DOES
