@@ -6,7 +6,7 @@ set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 ## Import enviroment variables (api key etc)
-source .env
+source "$(dirname "$0")/.env"
 
 # Debug function to print messages if debug level is 1 or 2
 debug() {
