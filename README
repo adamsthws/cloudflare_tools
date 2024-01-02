@@ -8,8 +8,8 @@ If different, it updates the domain's DNS A record at cloudflare to relect the m
 Similar to DuckDNS / No-IP / DynDNS but using your own domain on Cloudflare.
 
 INSTALATION
-Save the script here: /usr/local/bin/cloudflare-ddns.sh.
-Set permissions: "sudo chmod 600 /usr/local/bin/cloudflare-ddns.sh".
+Save the script here: /usr/local/bin/******
+Set permissions: "sudo chmod 600 /usr/local/bin/******
 
 AUTO-RUN
 To automatically execute it every 10 minuites, add the following cron-job ("sudo crontab -e"):
