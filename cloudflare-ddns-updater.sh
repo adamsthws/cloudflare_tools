@@ -5,9 +5,8 @@
 set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-## Import enviroment variables (api key etc)
-####### Add a check and debug message for this ######
-source "$(dirname "$0")/.env"
+# Set default debug level
+DEFAULT_DEBUG_LEVEL=1
 
 # Debug function to print messages if debug level is 1 or 2
 debug() {
@@ -22,6 +21,23 @@ error() {
     exit 1
 }
 
+# Get script directory
+script_dir=$(dirname "$0")
+
+# Import enviroment variables (api key etc) from .env file
+if source "$script_dir/.env"; then
+    debug "Check 1 (of 9) passed. .env file loaded, proceeding..."
+else
+    error "Error: failed to source $script_dir/.env"
+fi
+
+# Validate debug level after sourcing .env file
+debug_level_allowed=(1 2 3)
+if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
+    debug "Invalid DEBUG_LEVEL '$DEBUG_LEVEL'. Must be one of: ${allowed[*]}. Falling back to default debug level: $DEFAULT_DEBUG_LEVEL."
+    DEBUG_LEVEL=$DEFAULT_DEBUG_LEVEL
+fi
+
 # Set debug mode for debug level 2
 if [[ $DEBUG_LEVEL -eq 2 ]]; then
     echo "Debugging is enabled. This can fill your logs fast."
@@ -32,7 +48,7 @@ fi
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
     error "Error: The script is already running."
 else
-    debug "Check 1 (of 8) passed. Script is not already running, proceeding..."
+    debug "Check 2 (of 9) passed. Script is not already running, proceeding..."
 fi
 
 # Check if jq is installed
@@ -40,7 +56,7 @@ check_jq=$(which jq)
 if [ -z "${check_jq}" ]; then
     error "Error: jq is not installed."
 else
-    debug "Check 2 (of 8) passed. 'jq' is installed, proceeding..."
+    debug "Check 3 (of 9) passed. 'jq' is installed, proceeding..."
 fi
 
 # Check the subdomain
@@ -50,7 +66,7 @@ if [[ $DNS_RECORD == *.* ]]; then
     if [[ $DNS_RECORD != *.$ZONE_NAME ]]; then
         error "Error: The Zone in DNS_RECORD does not match the defined Zone in ZONE_NAME."
     else
-        debug "Check 3 (of 8) passed. DNS zone to check/update: $DNS_RECORD, proceeding..."
+        debug "Check 4 (of 9) passed. DNS zone to check/update: $DNS_RECORD, proceeding..."
     fi
 # check if the dns_record (subdomain) is not complete and contains invalid characters
 elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
@@ -58,7 +74,7 @@ elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
 # if the dns_record (subdomain) is not complete, complete it
 else
     DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
-    debug debug "Check 3 (of 8) passed. DNS zone to check/update: $DNS_RECORD, proceeding..."
+    debug debug "Check 4 (of 9) passed. DNS zone to check/update: $DNS_RECORD, proceeding..."
 fi
 
 # Get the DNS A Record IP
@@ -67,14 +83,14 @@ check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1)
 if [ -z "${check_record_ipv4}" ]; then
     error "Error: No A Record is setup for ${DNS_RECORD}."
 else
-    debug "Check 4 (of 8) passed. DNS zone A record is: $check_record_ipv4, proceeding..."
+    debug "Check 5 (of 9) passed. DNS zone A record is: $check_record_ipv4, proceeding..."
 fi
 
 # Get the machine's WAN IP
 ipv4=$(curl -s -X GET https://checkip.amazonaws.com)
 # Check the machine has a valid WAN IP               ##### MAKE THIS A MORE THOROUGH CHECK ##########
 if [ $ipv4 ]; then
-    debug "Check 5 (of 8) passed. Machine's public (WAN) IP is: $ipv4, proceeding..."
+    debug "Check 6 (of 9) passed. Machine's public (WAN) IP is: $ipv4, proceeding..."
 else
     error "Error: Unable to get any public IPv4 address."
 fi
@@ -87,7 +103,7 @@ user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verif
         )
 # Check if the API is valid and the email is correct
 if [ $user_id ]; then
-    debug "Check 6 (of 8) passed. Cloudflare User ID is: $user_id, proceeding..."
+    debug "Check 7 (of 9) passed. Cloudflare User ID is: $user_id, proceeding..."
 else
     error "Error: There is a problem with the Cloudflare API token."
 fi
@@ -101,7 +117,7 @@ zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_
         )
 # Check if the Zone ID is avilable
 if [ $zone_id ]; then
-    debug "Check 7 (of 8) passed. Cloudflare Zone ID is: $zone_id, proceeding..."
+    debug "Check 8 (of 9) passed. Cloudflare Zone ID is: $zone_id, proceeding..."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
@@ -115,7 +131,7 @@ dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zo
 dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
 # Check if the IP can be retrieved via API
 if [ $dns_record_a_ip ]; then
-    debug "Check 8 (of 8) passed. Zone A record IP (via Cloudflare API) is: $dns_record_a_ip, proceeding..."
+    debug "Check 9 (of 9) passed. Zone A record IP (via Cloudflare API) is: $dns_record_a_ip, proceeding..."
 else
     error "Error: There is a problem with getting the zone A record IP via Cloudflare API."
 fi
