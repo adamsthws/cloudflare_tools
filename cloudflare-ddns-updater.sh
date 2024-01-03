@@ -26,7 +26,7 @@ script_dir=$(dirname "$0")
 # Import enviroment variables (api key etc) from .env file
 if source "$script_dir/.env"; then
     # Validate debug level after sourcing .env file
-    debug_level_allowed=(1 2 3)
+    debug_level_allowed=(0 1 2)
     if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
@@ -153,7 +153,7 @@ if [ $dns_record_a_ip != $machine_ipv4 ]; then
             -H "X-Auth-Email: $EMAIL" \
             -H "Authorization: Bearer $API_KEY" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}" \
-    | jq -r '.errors'
+            | jq -r '.errors'
     # Wait a few minutes to allow the DNS change to propogate / become active
     sleep_seconds=300
     debug "Paused for $sleep_seconds seconds. (Allows IP update to propogate before final check)..."
