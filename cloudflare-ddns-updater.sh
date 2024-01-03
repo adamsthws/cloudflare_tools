@@ -5,7 +5,7 @@
 set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-# Debug function to print messages if debug level is 1 or 2
+# Debug function to print messages when DEBUG_LEVEL is '1' or '2'
 debug() {
     if [[ $DEBUG_LEVEL -gt 0 ]]; then
         # Print debug messages
@@ -31,11 +31,12 @@ if source "$script_dir/.env"; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
         debug "Check 1 (of 9) passed. .env file loaded."
+    fi
 else
     error "Error: failed to source file: $script_dir/.env"
 fi
 
-# Set debug mode for debug level 2
+# Set verbose output when DEBUG_LEVEL=2
 if [[ $DEBUG_LEVEL -eq 2 ]]; then
     echo "Debugging is enabled. This can fill your logs fast."
     set -x
@@ -84,12 +85,25 @@ else
 fi
 
 # Get the machine's WAN IP
-ipv4=$(curl -s -X GET https://checkip.amazonaws.com)
-# Check the machine has a valid WAN IP               ##### MAKE THIS A MORE THOROUGH CHECK ##########
-if [ $ipv4 ]; then
-    debug "Check 6 (of 9) passed. Machine's public (WAN) IP is: $ipv4."
+timeout_seconds=10
+machine_ipv4=$(
+    curl -s https://checkip.amazonaws.com --max-time $timeout_seconds ||
+    curl -s https://api.ipify.org --max-time $timeout_seconds ||
+    curl -s https://ipv4.icanhazip.com/ --max-time $timeout_seconds
+)
+
+# Check the IPv4 is obtainable
+if [ -z "$machine_ipv4" ]; then
+    error "Error: Can't get external IPv4"
+fi
+
+# Define valid IPv4 (using Regex)
+valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
+# Check the IPv4 is valid
+if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
+    error "Error: IP Address returned was invalid: '$machine_ipv4'"
 else
-    error "Error: Unable to get any public IPv4 address."
+    debug "Check 6 (of 9) passed. Machine's public (WAN) IP is: $machine_ipv4."
 fi
 
 # Get Cloudflare User ID
@@ -134,21 +148,21 @@ else
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
-if [ $dns_record_a_ip != $ipv4 ]; then
+if [ $dns_record_a_ip != $machine_ipv4 ]; then
     # If different, update the A record
     curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$(echo $dns_record_a_id | jq -r '{"result"}[] | .[0] | .id')" \
             -H "Content-Type: application/json" \
             -H "X-Auth-Email: $EMAIL" \
             -H "Authorization: Bearer $API_KEY" \
-            --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$ipv4\",\"ttl\":1,\"proxied\":false}" \
+            --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}" \
     | jq -r '.errors'
     # Wait for 180 seconds to allow the DNS change to propogate / become active
     sleep_seconds=300
     debug "Paused for $sleep_seconds seconds. (Allows IP update to propogate before final check)..."
     sleep $sleep_seconds
     # Check the IPv4 change has been applied sucessfully
-    if [ $check_record_ipv4 != $ipv4 ]; then
-        error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $ipv4 Domain IP: $check_record_ipv4"
+    if [ $check_record_ipv4 != $machine_ipv4 ]; then
+        error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4 Domain IP: $check_record_ipv4"
     else
         debug "Success: IPv4 updated on Cloudflare with the new value of: $check_record_ipv4."
         exit 0
