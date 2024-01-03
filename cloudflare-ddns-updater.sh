@@ -83,7 +83,7 @@ user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verif
         )
 # Check if the API is valid and the email is correct
 if [ $user_id ]; then
-    debug "Check 7 (of 9) passed. Cloudflare User ID is: $user_id."
+    debug "Check 5 (of 9) passed. Cloudflare User ID is: $user_id."
 else
     error "Error: There is a problem with the Cloudflare API token."
 fi
@@ -97,7 +97,7 @@ zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_
         )
 # Check if the Zone ID is avilable
 if [ $zone_id ]; then
-    debug "Check 8 (of 9) passed. Cloudflare Zone ID is: $zone_id."
+    debug "Check 6 (of 9) passed. Cloudflare Zone ID is: $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
@@ -111,7 +111,7 @@ dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zo
 dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
 # Check if the IP can be retrieved via API
 if [ $dns_record_a_ip ]; then
-    debug "Check 9 (of 9) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
+    debug "Check 7 (of 9) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
 else
     error "Error: There is a problem with getting the zone A record IP via Cloudflare API."
 fi
@@ -122,7 +122,7 @@ check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1)
 if [ -z "${check_record_ipv4}" ]; then
     error "Error: No A Record is setup for ${DNS_RECORD}."
 else
-    debug "Check 5 (of 9) passed. DNS zone A-record IP (via 'dig' domain groper): $check_record_ipv4."
+    debug "Check 8 (of 9) passed. DNS zone A-record IP (via 'dig' domain groper): $check_record_ipv4."
 fi
 
 # Get the machine's WAN IP
@@ -142,7 +142,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 else
-    debug "Check 6 (of 9) passed. Machine's public (WAN) IP is: $machine_ipv4."
+    debug "Check 9 (of 9) passed. Machine's public (WAN) IP is: $machine_ipv4."
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
