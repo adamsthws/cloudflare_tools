@@ -75,37 +75,6 @@ else
     debug debug "Check 4 (of 9) passed. DNS zone to check/update: $DNS_RECORD."
 fi
 
-# Get the DNS A Record IP
-check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1)
-# Check if A Record exists
-if [ -z "${check_record_ipv4}" ]; then
-    error "Error: No A Record is setup for ${DNS_RECORD}."
-else
-    debug "Check 5 (of 9) passed. DNS zone A record is: $check_record_ipv4."
-fi
-
-# Get the machine's WAN IP
-timeout_seconds=10
-machine_ipv4=$(
-    curl -s https://checkip.amazonaws.com --max-time $timeout_seconds ||
-    curl -s https://api.ipify.org --max-time $timeout_seconds ||
-    curl -s https://ipv4.icanhazip.com/ --max-time $timeout_seconds
-)
-
-# Check the IPv4 is obtainable
-if [ -z "$machine_ipv4" ]; then
-    error "Error: Can't get external IPv4"
-fi
-
-# Define valid IPv4 (using Regex)
-valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
-# Check the IPv4 is valid
-if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
-    error "Error: IP Address returned was invalid: '$machine_ipv4'"
-else
-    debug "Check 6 (of 9) passed. Machine's public (WAN) IP is: $machine_ipv4."
-fi
-
 # Get Cloudflare User ID
 user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
             -H "Authorization: Bearer $API_KEY" \
@@ -142,9 +111,38 @@ dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zo
 dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
 # Check if the IP can be retrieved via API
 if [ $dns_record_a_ip ]; then
-    debug "Check 9 (of 9) passed. Zone A record IP (via Cloudflare API) is: $dns_record_a_ip."
+    debug "Check 9 (of 9) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
 else
     error "Error: There is a problem with getting the zone A record IP via Cloudflare API."
+fi
+
+# Get the DNS A Record IP
+check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1)
+# Check if A Record exists
+if [ -z "${check_record_ipv4}" ]; then
+    error "Error: No A Record is setup for ${DNS_RECORD}."
+else
+    debug "Check 5 (of 9) passed. DNS zone A-record IP (via 'dig' domain groper): $check_record_ipv4."
+fi
+
+# Get the machine's WAN IP
+timeout_seconds=10
+machine_ipv4=$(
+    curl -s https://checkip.amazonaws.com --max-time $timeout_seconds ||
+    curl -s https://api.ipify.org --max-time $timeout_seconds ||
+    curl -s https://ipv4.icanhazip.com/ --max-time $timeout_seconds
+)
+# Check the IPv4 is obtainable
+if [ -z "$machine_ipv4" ]; then
+    error "Error: Can't get external IPv4"
+fi
+# Define valid IPv4 (using Regex)
+valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
+# Check the IPv4 is valid
+if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
+    error "Error: IP Address returned was invalid: '$machine_ipv4'"
+else
+    debug "Check 6 (of 9) passed. Machine's public (WAN) IP is: $machine_ipv4."
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
