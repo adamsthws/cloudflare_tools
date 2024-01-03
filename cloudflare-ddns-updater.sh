@@ -154,7 +154,7 @@ if [ $dns_record_a_ip != $machine_ipv4 ]; then
             -H "Authorization: Bearer $API_KEY" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}" \
     | jq -r '.errors'
-    # Wait for 180 seconds to allow the DNS change to propogate / become active
+    # Wait a few minutes to allow the DNS change to propogate / become active
     sleep_seconds=300
     debug "Paused for $sleep_seconds seconds. (Allows IP update to propogate before final check)..."
     sleep $sleep_seconds
