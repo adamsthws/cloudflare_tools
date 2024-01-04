@@ -193,7 +193,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 else
-    debug "Check 11 (of 11) passed. Machine's public (WAN) IP is:               $machine_ipv4."
+    debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                 $machine_ipv4."
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
