@@ -194,27 +194,34 @@ else
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
-if [ $cf_a_record_ip != $machine_ipv4 ]; then
+if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
     # If different, update the A record
-    curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$(echo $dns_record_a_id | jq -r '{"result"}[] | .[0] | .id')" \
+    response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$dns_record_a_id" \
             -H "Content-Type: application/json" \
             -H "X-Auth-Email: $EMAIL" \
             -H "Authorization: Bearer $API_KEY" \
-            --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}" \
-            | jq -r '.errors'
-    # Wait a few minutes to allow the DNS change to propogate / become active
-    sleep_seconds=300
-    debug "Paused for $sleep_seconds seconds. (Allows IP update to propogate before final check)..."
-    sleep $sleep_seconds
-    # Check the IPv4 change has been applied sucessfully
-    if [ $published_a_record_ipv4 != $machine_ipv4 ]; then
-        error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4 Domain IP: $published_a_record_ipv4"
+            --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
+
+    # Extract errors from the response
+    error_message=$(echo "$response" | jq -r '.errors[]? | .message')
+    if [ -n "$error_message" ]; then
+        error "Error updating DNS record: $error_message"
     else
-        debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
-        exit 0
+        # Wait a few minutes to allow the DNS change to propagate / become active
+        sleep_seconds=300
+        debug "Paused for $sleep_seconds seconds. (Allows IP update to propagate before final check)..."
+        sleep $sleep_seconds
+
+        # Check the IPv4 change has been applied successfully
+        if [ "$published_a_record_ipv4" != "$machine_ipv4" ]; then
+            error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4, Domain IP: $published_a_record_ipv4"
+        else
+            debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
+            exit 0
+        fi
     fi
 else
     debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
     exit 0
-    fi
 fi
+
