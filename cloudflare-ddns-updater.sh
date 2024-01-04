@@ -138,7 +138,9 @@ for (( i=0; i<curl_retries; i++ )); do
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "X-Auth-Email: $EMAIL" \
-                -H "Authorization: Bearer $API_KEY")
+                -H "Authorization: Bearer $API_KEY" \
+                | jq -r '.result[0].id')
+
     if [ -n "$dns_record_a_id" ]; then
         break # Exit loop if dns_record_a_id is obtained
     fi
@@ -154,8 +156,8 @@ else
 fi
 
 # Parse the DNS zone A record IP (Via Cloudflare API)
-#dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '.result[0].content')
-dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '{"result"}[] | .[0] | .content')
+dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '.result[0].content')
+#dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '{"result"}[] | .[0] | .content')
 
 # Check if the DNS Zone A-record IP is successfully obtained
 if [ -n "$dns_record_a_ip" ]; then
