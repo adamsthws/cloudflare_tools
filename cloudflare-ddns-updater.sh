@@ -72,11 +72,11 @@ curl_wait=5      # Seconds to wait between retries
 valid_email_format="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
 # Check if the entered email is valid (in the .env file)
-if ! [[ $EMAIL =~ $valid_email_format ]]; then
-    error "Error: Invalid email address format: $EMAIL"
-else
-    debug "Check 5  (of 12) passed. Email address format is valid: $EMAIL"
-fi
+#if ! [[ $EMAIL =~ $valid_email_format ]]; then
+#    error "Error: Invalid email address format: $EMAIL"
+#else
+#    debug "Check 5  (of 12) passed. Email address format is valid: $EMAIL"
+#fi
 
 # Check the subdomain (DNS_RECORD variable) in the .env file
 # Check if the dns_record field (subdomain) contains dot and matches the zone name
@@ -99,7 +99,7 @@ user_id=""
 for (( i=0; i<curl_retries; i++ )); do
     user_id=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
-                -H "Authorization: Bearer $API_KEY" \
+                -H "Authorization: Bearer $API_TOKEN" \
                 -H "Content-Type: application/json" \
                 | jq -r '.result | .id')
     if [ -n "$user_id" ]; then
@@ -123,7 +123,7 @@ for (( i=0; i<curl_retries; i++ )); do
                 -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
                 -H "X-Auth-Email: $EMAIL" \
-                -H "Authorization: Bearer $API_KEY" \
+                -H "Authorization: Bearer $API_TOKEN" \
                 | jq -r '.result[0].id')
     if [ -n "$zone_id" ]; then
         break # Exit loop if zone_id is obtained
@@ -146,7 +146,7 @@ for (( i=0; i<curl_retries; i++ )); do
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "X-Auth-Email: $EMAIL" \
-                -H "Authorization: Bearer $API_KEY")
+                -H "Authorization: Bearer $API_TOKEN")
     if [ -n "$dns_record_json" ]; then
         break # Exit loop if response is obtained
     fi
@@ -212,7 +212,7 @@ if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
     response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$dns_record_a_id" \
             -H "Content-Type: application/json" \
             -H "X-Auth-Email: $EMAIL" \
-            -H "Authorization: Bearer $API_KEY" \
+            -H "Authorization: Bearer $API_TOKEN" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
     # Extract errors from the response
     error_message=$(echo "$response" | jq -r '.errors[]? | .message')
