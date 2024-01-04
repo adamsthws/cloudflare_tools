@@ -131,28 +131,47 @@ else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
 
-
-# Get DNS zone A record IP (Via Cloudflare API)
-dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD"  \
+# Attempt to obtain the DNS zone A record ID (Via Cloudflare API)
+dns_record_a_id=""
+for (( i=0; i<curl_retries; i++ )); do
+    dns_record_a_id=$(curl -s -m "$curl_timeout" \
+                -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "X-Auth-Email: $EMAIL" \
-                -H "Authorization: Bearer $API_KEY"
-                )
-dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
-# Check if the IP can be retrieved via API
-if [ $dns_record_a_ip ]; then
-    debug "Check 8 (of 10) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
+                -H "Authorization: Bearer $API_KEY") \
+                | jq -r '.result[0].id'
+    if [ -n "$dns_record_a_id" ]; then
+        break # Exit loop if dns_record_a_id is obtained
+    fi
+    # Retry if unsuccessful
+    sleep "$curl_wait"
+done
+
+# Check if DNS Record A ID has been obtained successfully
+if [ -n "$dns_record_a_id" ]; then
+    debug "Check 8 (of 11) passed. DNS Zone A-record ID (via Cloudflare API): $dns_record_a_id."
+else
+    error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
+fi
+
+# Parse the DNS zone A record IP (Via Cloudflare API)
+dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '.result[0].content')
+
+# Check if the DNS Zone A-record IP is successfully obtained
+if [ -n "$dns_record_a_ip" ]; then
+    debug "Check 9 (of 11) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
 else
     error "Error: There is a problem with getting the zone A record IP via Cloudflare API."
 fi
 
 # Get the DNS A Record IP
-check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1)
-# Check if A Record exists
+check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
+
+# Check if A Record IP has been retrieved sucessfully
 if [ -z "${check_record_ipv4}" ]; then
     error "Error: No A Record is setup for ${DNS_RECORD}."
 else
-    debug "Check 9 (of 10) passed. DNS zone A-record IP (via 'dig' domain groper): $check_record_ipv4."
+    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'dig' domain groper): $check_record_ipv4."
 fi
 
 # Get the machine's WAN IP
@@ -172,7 +191,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 else
-    debug "Check 10 (of 10) passed. Machine's public (WAN) IP is: $machine_ipv4."
+    debug "Check 11 (of 11) passed. Machine's public (WAN) IP is: $machine_ipv4."
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
