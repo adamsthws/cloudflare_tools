@@ -30,7 +30,7 @@ if source "$script_dir/.env"; then
     if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
-        debug "Check 1  (of 10) passed. Required file '.env' loaded sucessfully."
+        debug "Check 1  (of 11) passed. Required file '.env' loaded sucessfully."
     fi
 else
     error "Error: failed to source file: $script_dir/.env"
@@ -46,21 +46,21 @@ fi
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
     error "Error: The script is already running."
 else
-    debug "Check 2  (of 10) passed. Script is not already running."
+    debug "Check 2  (of 11) passed. Script is not already running."
 fi
 
 # Check if jq is installed
 if ! command -v jq >/dev/null 2>&1; then
     error "Error: Required utility; 'jq' is not installed."
 else
-    debug "Check 3  (of 10) passed. Required utility; 'jq' is installed."
+    debug "Check 3  (of 11) passed. Required utility; 'jq' is installed."
 fi
 
 # Check if cURL is installed
 if ! command -v curl >/dev/null 2>&1; then
     error "Error: Required utility; 'cURL' is not installed."
 else
-    debug "Check 4  (of 10) passed. Required utility; 'cURL' is installed."
+    debug "Check 4  (of 11) passed. Required utility; 'cURL' is installed."
 fi
 
 # Set cURL parameters
@@ -82,7 +82,7 @@ else
     DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
 fi
 # Final confirmation/debug message
-debug "Check 5  (of 10) passed. DNS zone to check/update: $DNS_RECORD."
+debug "Check 5  (of 11) passed. DNS zone to check/update: $DNS_RECORD."
 
 # Attempt to obtain the Cloudflare User ID.
 user_id=""
@@ -101,7 +101,7 @@ done
 
 # Check if User ID has been obtained sucessfully
 if [ -n "$user_id" ]; then
-    debug "Check 6  (of 10) passed. Cloudflare User ID:     $user_id."
+    debug "Check 6  (of 11) passed. Cloudflare User ID:     $user_id."
 else
     error "Error: There is a problem with the Cloudflare API token."
 fi
@@ -124,7 +124,7 @@ done
 
 # Check if the Zone ID has been obtained successfully
 if [ -n "$zone_id" ]; then
-    debug "Check 7  (of 10) passed. Cloudflare Zone ID:     $zone_id."
+    debug "Check 7  (of 11) passed. Cloudflare Zone ID:     $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
@@ -207,7 +207,7 @@ if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
     # Extract errors from the response
     error_message=$(echo "$response" | jq -r '.errors[]? | .message')
     if [ -n "$error_message" ]; then
-        error "Error updating DNS record: $error_message"
+        error "Error updating Cloudflare DNS A-record: $error_message"
     else
         debug "IPv4 update applied to DNS zone A-record with the new value of: $machine_ipv4."
         final_check_required="True"
@@ -218,7 +218,7 @@ else
     exit 0
 fi
 
-# Final check that the IPv4 update has taken effect
+# Final check that the IPv4 update has taken effect and propogated
 if [ "$final_check_required" == "True" ]; then
     attempts=20 # Repeat the check this many times
     sleep_seconds=15 # How long to wait between checks
