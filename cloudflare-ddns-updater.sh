@@ -122,7 +122,6 @@ for (( i=0; i<curl_retries; i++ )); do
     zone_id=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
-                #-H "X-Auth-Email: $EMAIL" \
                 -H "Authorization: Bearer $API_TOKEN" \
                 | jq -r '.result[0].id')
     if [ -n "$zone_id" ]; then
@@ -145,7 +144,6 @@ for (( i=0; i<curl_retries; i++ )); do
     dns_record_json=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
-                #-H "X-Auth-Email: $EMAIL" \
                 -H "Authorization: Bearer $API_TOKEN")
     if [ -n "$dns_record_json" ]; then
         break # Exit loop if response is obtained
@@ -211,7 +209,6 @@ if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
     # If different, update the A record
     response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$dns_record_a_id" \
             -H "Content-Type: application/json" \
-            #-H "X-Auth-Email: $EMAIL" \
             -H "Authorization: Bearer $API_TOKEN" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
     # Extract errors from the response
