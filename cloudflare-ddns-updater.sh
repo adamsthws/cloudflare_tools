@@ -149,14 +149,15 @@ done
 
 # Check if DNS Record A ID has been obtained successfully
 if [ -n "$dns_record_a_id" ]; then
-    debug "Check 8 (of 11) passed. DNS Zone A-record ID (via Cloudflare API): $dns_record_a_id."
+    debug "Check 8 (of 11) passed. Cloudflare A-record ID is: $dns_record_a_id."
 else
     error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
 fi
 
 
 # Parse the DNS zone A record IP (Via Cloudflare API)
-dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '.result[0].content')
+#dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '.result[0].content')
+dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '{"result"}[] | .[0] | .content')
 
 # Check if the DNS Zone A-record IP is successfully obtained
 if [ -n "$dns_record_a_ip" ]; then
