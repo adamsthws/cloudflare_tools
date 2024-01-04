@@ -1,163 +1,240 @@
 #!/usr/bin/env bash
 
-# Enable Bash strict mode
-# https://olivergondza.github.io/2019/10/01/bash-strict-mode.html
+# Enable Bash 'strict mode'
+# See: https://olivergondza.github.io/2019/10/01/bash-strict-mode.html
 set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-# WHAT IT DOES
-# This script acts as a DYNdns updater for a domain on Cloudflare.
-# It compares the current external (WAN) IP address of the machine with the DNS IP record of the domain.
-# If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
+# Debug function to print messages when DEBUG_LEVEL is '1' or '2'
+debug() {
+    if [[ $DEBUG_LEVEL -gt 0 ]]; then
+        # Print debug messages
+        echo "$1"
+    fi
+}
 
-# SCRIPT LOCATION
-# Save the script here: /usr/local/bin/cloudflare-ddns.sh.
-# Set permissions: "sudo chmod 100 /usr/local/bin/cloudflare-ddns.sh".
+# Error function to print error and exit script
+error() {
+    # Print error and exit
+    echo -e "$1" >&2
+    exit 1
+}
 
-# AUTO-RUN
-# To automatically execute it every 10 minuites, add the following cron-job ("sudo crontab -e"):
-#     #Track changes to public IP and update Cloudflare DNS record.
-#     */10 * * * * /usr/local/bin/cloudflare-ddns.sh
+# Get script directory
+script_dir=$(dirname "$0")
 
-# NOTIFICATIONS
-# When script is executed manually (e.g. from command line)...
-#     Success - Result and IPv4 address is output to terminal.
-#     Error - Result and reason for failure is output to terminal.
-# When executed as a cron-job...
-#     Success - Will remain silent / no notification.
-#     Error - The admin will be mailed.
-#     Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
+# Import enviroment variables (api key etc) from .env file
+if source "$script_dir/.env"; then
+    # Validate debug level after sourcing .env file
+    debug_level_allowed=(0 1 2)
+    if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
+        error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
+    else
+        debug "Check 1  (of 11) passed. Required file '.env' loaded sucessfully."
+    fi
+else
+    error "Error: failed to source file: $script_dir/.env"
+fi
 
-
-#####  SET INITIAL DATA   #####
-
-
-## The API token; e.g. FErgdfflw3wr59dfDce33-3D43dsfs3sddsFoD3
-api_token="<your-cloudflare-api-token>"
-
-## The email address associated with the Cloudflare account; e.g. email@gmail.com
-email="<your-cloudflare-email-address>"
-
-## The zone (TLD domain); e.g. example.com
-zone_name="<your-cloudflare-domain>"
-
-## The dns record (Full sub-domain) to be modified; e.g. sub.example.com
-dns_record="<your-full-cloudflare-sub-domain>"
-
-
-#####  DO NOT EDIT ANYTHING BELOW THIS LINE  #####
-
+# Set verbose output when DEBUG_LEVEL=2
+if [[ $DEBUG_LEVEL -eq 2 ]]; then
+    echo "Debugging is enabled. This can fill your logs fast."
+    set -x
+fi
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
-    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe script is already running."
-    exit 1
+    error "Error: The script is already running."
+else
+    debug "Check 2  (of 11) passed. Script is not already running."
 fi
 
 # Check if jq is installed
-check_jq=$(which jq)
-if [ -z "${check_jq}" ]; then
-    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \njq is not installed. Install it by 'sudo apt install jq'."
-    exit 1
-fi
-
-# Check the subdomain
-# Check if the dns_record field (subdomain) contains dot
-if [[ $dns_record == *.* ]]; then
-    # if the zone_name field (domain) is not in the dns_record
-    if [[ $dns_record != *.$zone_name ]]; then
-        >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe Zone in DNS Record does not match the defined Zone; check it and try again."
-        exit 1
-    fi
-# check if the dns_record (subdomain) is not complete and contains invalid characters
-elif ! [[ $dns_record =~ ^[a-zA-Z0-9-]+$ ]]; then
-    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThe DNS Record contains illegal charecters, i.e., @, %, *, _, etc.; fix it and run the script again."
-    exit 1
-# if the dns_record (subdomain) is not complete, complete it
+if ! command -v jq >/dev/null 2>&1; then
+    error "Error: Required utility; 'jq' is not installed."
 else
-    dns_record="$dns_record.$zone_name"
+    debug "Check 3  (of 11) passed. Required utility; 'jq' is installed."
 fi
 
-# Check if DNS Records Exists
-check_record_ipv4=$(dig -t a +short ${dns_record} | tail -n1)
-
-# get the basic data
-ipv4=$(curl -s -X GET https://checkip.amazonaws.com)
-user_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
-               -H "Authorization: Bearer $api_token" \
-               -H "Content-Type:application/json" \
-          | jq -r '{"result"}[] | .id'
-         )
-
-# Check public IPv4 is obtainable
-if [ $ipv4 ]; then
-    # If running as chron stay silent. Otherwise output result.
-    if [ -t 1 ] ; then
-        echo -e "Current public IPv4 address: $ipv4"
-    fi
+# Check if cURL is installed
+if ! command -v curl >/dev/null 2>&1; then
+    error "Error: Required utility; 'cURL' is not installed."
 else
-    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nUnable to get any public IPv4 address."
-    exit 1
+    debug "Check 4  (of 11) passed. Required utility; 'cURL' is installed."
 fi
 
-# Check if the user API is valid and the email is correct
-if [ $user_id ]; then
-    zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$zone_name&status=active" \
-                   -H "Content-Type: application/json" \
-                   -H "X-Auth-Email: $email" \
-                   -H "Authorization: Bearer $api_token" \
-              | jq -r '{"result"}[] | .[0] | .id'
-             )
-    # check if the zone ID is avilable
-    if [ $zone_id ]; then
-        # check if there is IPv4
-        if [ $ipv4 ]; then
-            # Check if A Record exists
-            if [ -z "${check_record_ipv4}" ]; then
-                >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nNo A Record is setup for ${dns_record}."
-                exit 1
-            fi
-            dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$dns_record"  \
-                                   -H "Content-Type: application/json" \
-                                   -H "X-Auth-Email: $email" \
-                                   -H "Authorization: Bearer $api_token"
-                             )
-            dns_record_a_ip=$(echo $dns_record_a_id |  jq -r '{"result"}[] | .[0] | .content')
-            # Check if the machine's IPv4 is different to the Cloudflare IPv4
-            if [ $dns_record_a_ip != $ipv4 ]; then
-                # If IPv4 is different, update the A record
-                curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$(echo $dns_record_a_id | jq -r '{"result"}[] | .[0] | .id')" \
-                     -H "Content-Type: application/json" \
-                     -H "X-Auth-Email: $email" \
-                     -H "Authorization: Bearer $api_token" \
-                     --data "{\"type\":\"A\",\"name\":\"$dns_record\",\"content\":\"$ipv4\",\"ttl\":1,\"proxied\":false}" \
-                | jq -r '.errors'
-                # Wait for 180 seconds to allow the DNS change to propogate / become active
-                sleep 180
-                # Check the IPv4 change has been applied sucessfully
-                if [ $check_record_ipv4 != $ipv4 ]; then
-                    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nA change of IP was attempted but was unsuccessful. \nCurrent IP: $ipv4 \nCloudflare IP: $check_record_ipv4"
-                    exit 1
-                # Output result (stays silent if executed from cron-job)
-                elif [ -t 1 ] ; then
-                    echo -e "Script Notification (Cloudflare DYNdns updater script) \nUpdated: IPv4 successfully set on Cloudflare with the value of: $ipv4."
-                    exit 0
-                fi
+# Set cURL parameters
+curl_timeout=10  # How many seconds before cURL times out
+curl_retries=3   # Maximum number of retries
+curl_wait=5      # Seconds to wait between retries
 
-            else
-                # Output result (stays silent if executed from cron-job)
-                if [ -t 1 ] ; then
-                    echo -e "Script Notification (Cloudflare DYNdns updater script) \nNo change: The current IPv4 address matches the IP at Cloudflare: $ipv4."
-                    exit 0
-                fi
-            fi
-        fi
+# Check the subdomain (DNS_RECORD variable) in the .env file
+# Check if the dns_record field (subdomain) contains dot and matches the zone name
+if [[ $DNS_RECORD == *.* ]]; then
+    if [[ $DNS_RECORD != *.$ZONE_NAME ]]; then
+        error "Error: The Zone in DNS_RECORD does not match the defined Zone in ZONE_NAME."
+    fi
+# Check if the dns_record (subdomain) is not complete and contains invalid characters
+elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
+    error "Error: The DNS Record contains illegal characters - e.g: ., @, %, *, _"
+# If the dns_record (subdomain) is not complete, complete it
+else
+    DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
+fi
+# Final confirmation/debug message
+debug "Check 5  (of 11) passed. DNS zone to check/update: $DNS_RECORD."
 
+# Attempt to obtain the Cloudflare User ID.
+user_id=""
+for (( i=0; i<curl_retries; i++ )); do
+    user_id=$(curl -s -m "$curl_timeout" \
+                -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+                -H "Authorization: Bearer $API_TOKEN" \
+                -H "Content-Type: application/json" \
+                | jq -r '.result | .id')
+    if [ -n "$user_id" ]; then
+        break # Exit loop if user_id is obtained
+    fi
+    # Retry if unsuccessful.
+    sleep "$curl_wait"
+done
+
+# Check if User ID has been obtained sucessfully
+if [ -n "$user_id" ]; then
+    debug "Check 6  (of 11) passed. Cloudflare User ID:     $user_id."
+else
+    error "Error: There is a problem with the Cloudflare API token."
+fi
+
+# # Attempt to obtain the Cloudflare Zone ID
+zone_id=""
+for (( i=0; i<curl_retries; i++ )); do
+    zone_id=$(curl -s -m "$curl_timeout" \
+                -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $API_TOKEN" \
+                | jq -r '.result[0].id')
+    if [ -n "$zone_id" ]; then
+        break # Exit loop if zone_id is obtained
+    fi
+    # Retry if unsuccessful
+    sleep "$curl_wait"
+done
+
+# Check if the Zone ID has been obtained successfully
+if [ -n "$zone_id" ]; then
+    debug "Check 7  (of 11) passed. Cloudflare Zone ID:     $zone_id."
+else
+    error "Error: There is a problem with getting the Zone ID (sub-domain)."
+fi
+
+# Attempt to obtain the JSON response for the DNS zone A-record (Via Cloudflare API)
+dns_record_json=""
+for (( i=0; i<curl_retries; i++ )); do
+    dns_record_json=$(curl -s -m "$curl_timeout" \
+                -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $API_TOKEN")
+    if [ -n "$dns_record_json" ]; then
+        break # Exit loop if response is obtained
+    fi
+    # Retry if unsuccessful
+    sleep "$curl_wait"
+done
+
+# Extract the DNS Record A ID from the JSON response
+dns_record_a_id=$(echo "$dns_record_json" | jq -r '.result[0].id')
+
+# Check if DNS Record A ID has been obtained successfully
+if [ -n "$dns_record_a_id" ]; then
+    debug "Check 8  (of 11) passed. Cloudflare A-record ID: $dns_record_a_id."
+else
+    error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
+fi
+
+# Parse the DNS zone A-record IP (Via Cloudflare API)
+cf_a_record_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
+
+# Define valid IPv4 (using Regex)
+valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
+
+# Check if DNS Zone A-record IP has been obtained successfully and is valid
+if [[ -n "$cf_a_record_ip" ]] && [[ "$cf_a_record_ip" =~ $valid_ipv4 ]]; then
+    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
+else
+    error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$cf_a_record_ip'"
+fi
+
+# Function to get the published IPv4 via dig
+get_published_a_record_ipv4() {
+    dig -t a +short ${DNS_RECORD} | tail -n1 | xargs
+}
+
+# Assign the published DNS A-record to a variable
+published_a_record_ipv4=$(get_published_a_record_ipv4)
+
+# Check if published A-record IP has been retrieved successfully and is valid
+if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
+    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
+else
+    error "Error: No valid A Record is set up for ${DNS_RECORD}, or the IP is invalid: '$published_a_record_ipv4'."
+fi
+
+# Get the machine's WAN IP (with multiple fallback options)
+machine_ipv4=$(
+    curl -s https://checkip.amazonaws.com  --max-time $curl_timeout ||
+    curl -s https://api.ipify.org          --max-time $curl_timeout ||
+    curl -s https://ipv4.icanhazip.com/    --max-time $curl_timeout
+)
+
+# Check if the machine's public IP has been retrieved sucessfully and is valid
+if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
+    debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                   $machine_ipv4."
+else
+    error "Error: IP Address returned was invalid: '$machine_ipv4'"
+fi
+
+# Check if the machine's IPv4 is different to the Cloudflare IPv4
+if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
+    # If different, update the A record
+    response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$dns_record_a_id" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_TOKEN" \
+            --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
+    # Extract errors from the response
+    error_message=$(echo "$response" | jq -r '.errors[]? | .message')
+    if [ -n "$error_message" ]; then
+        error "Error updating Cloudflare DNS A-record: $error_message"
     else
-        >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with getting the Zone ID (sub-domain) or the email address (username)."
-        exit 1
+        debug "IPv4 update applied to DNS zone A-record with the new value of: $machine_ipv4."
+        final_check_required="True"
     fi
 else
-    >&2 echo -e "Script Error (Cloudflare DYNdns updater script) \nThere is a problem with the API token."
-    exit 1
+    debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
+    final_check_required="False"
+    exit 0
+fi
+
+# Final check that the IPv4 update has taken effect
+if [ "$final_check_required" == "True" ]; then
+    attempts=20 # Repeat the check this many times
+    sleep_seconds=15 # How long to wait between checks
+    sleep $sleep_seconds # Pause before first check
+    while [ $attempts -gt 0 ]; do
+        # Fetch the current published A Record IP again
+        published_a_record_ipv4=$(get_published_a_record_ipv4)
+        debug "Checking if IPv4 update has taken effect. Published IP: $published_a_record_ipv4"
+        if [ "$published_a_record_ipv4" == "$machine_ipv4" ]; then
+            debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
+            exit 0
+        fi
+        debug "IPv4 update hasn't taken effect yet. Checking again in $sleep_seconds seconds. ($attempts attempts remaining)"
+        sleep $sleep_seconds
+        attempts=$((attempts - 1))
+    done
+
+    error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4, Last checked Domain IP: $published_a_record_ipv4"
+else
+    debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
+    exit 0
 fi
