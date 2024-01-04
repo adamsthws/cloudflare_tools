@@ -30,7 +30,7 @@ if source "$script_dir/.env"; then
     if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
-        debug "Check 1  (of 10) passed. .env file loaded."
+        debug "Check 1  (of 10) passed. Required file '.env' loaded sucessfully."
     fi
 else
     error "Error: failed to source file: $script_dir/.env"
@@ -103,7 +103,7 @@ done
 
 # Check if User ID has been obtained sucessfully
 if [ -n "$user_id" ]; then
-    debug "Check 6  (of 10) passed. Cloudflare User ID is:     $user_id."
+    debug "Check 6  (of 10) passed. Cloudflare User ID:     $user_id."
 else
     error "Error: There is a problem with the Cloudflare API token."
 fi
@@ -126,7 +126,7 @@ done
 
 # Check if the Zone ID has been obtained successfully
 if [ -n "$zone_id" ]; then
-    debug "Check 7  (of 10) passed. Cloudflare Zone ID is:     $zone_id."
+    debug "Check 7  (of 10) passed. Cloudflare Zone ID:     $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
@@ -151,7 +151,7 @@ dns_record_a_id=$(echo "$dns_record_json" | jq -r '.result[0].id')
 
 # Check if DNS Record A ID has been obtained successfully
 if [ -n "$dns_record_a_id" ]; then
-    debug "Check 8  (of 11) passed. Cloudflare A-record ID is: $dns_record_a_id."
+    debug "Check 8  (of 11) passed. Cloudflare A-record ID: $dns_record_a_id."
 else
     error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
 fi
@@ -161,7 +161,7 @@ dns_record_a_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
 # Check if DNS Zone A-record IP has been obtained successfully
 if [ -n "$dns_record_a_ip" ]; then
-    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
+    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $dns_record_a_ip."
 else
     error "Error: There was a problem when attempting to obtain the DNS A-record IP via Cloudflare API."
 fi
@@ -193,7 +193,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 else
-    debug "Check 11 (of 11) passed. Machine's public (WAN) IP is: $machine_ipv4."
+    debug "Check 11 (of 11) passed. Machine's public (WAN) IP is:                   $machine_ipv4."
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
