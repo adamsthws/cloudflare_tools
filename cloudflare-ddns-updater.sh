@@ -215,7 +215,7 @@ else
     exit 0
 fi
 
-# Final check that the IPv4 update has taken effect and propogated
+# Final check that the IPv4 update has taken effect
 if [ "$final_check_required" == "True" ]; then
     attempts=20 # Repeat the check this many times
     sleep_seconds=15 # How long to wait between checks
