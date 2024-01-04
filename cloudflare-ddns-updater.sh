@@ -131,21 +131,23 @@ else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
 
-# Attempt to obtain the DNS zone A record ID (Via Cloudflare API)
-dns_record_a_id=""
+# Attempt to obtain the JSON response for the DNS zone A record (Via Cloudflare API)
+dns_record_json=""
 for (( i=0; i<curl_retries; i++ )); do
-    dns_record_a_id=$(curl -s -m "$curl_timeout" \
+    dns_record_json=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "X-Auth-Email: $EMAIL" \
-                -H "Authorization: Bearer $API_KEY" \
-                | jq -r '.result[0].id')
-    if [ -n "$dns_record_a_id" ]; then
-        break # Exit loop if dns_record_a_id is obtained
+                -H "Authorization: Bearer $API_KEY")
+    if [ -n "$dns_record_json" ]; then
+        break # Exit loop if response is obtained
     fi
     # Retry if unsuccessful
     sleep "$curl_wait"
 done
+
+# Extract the DNS Record A ID from the JSON response
+dns_record_a_id=$(echo "$dns_record_json" | jq -r '.result[0].id')
 
 # Check if DNS Record A ID has been obtained successfully
 if [ -n "$dns_record_a_id" ]; then
@@ -154,15 +156,14 @@ else
     error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
 fi
 
-# Parse the DNS zone A record IP (Via Cloudflare API)
-dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '.result[0].content')
-#dns_record_a_ip=$(echo "$dns_record_a_id" | jq -r '{"result"}[] | .[0] | .content')
+# Parse the DNS zone A-record IP (Via Cloudflare API)
+dns_record_a_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
-# Check if the DNS Zone A-record IP is successfully obtained
+# Check if DNS Zone A-record IP has been obtained successfully
 if [ -n "$dns_record_a_ip" ]; then
     debug "Check 9 (of 11) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
 else
-    error "Error: There is a problem with getting the zone A record IP via Cloudflare API."
+    error "Error: There was a problem when attempting to obtain the DNS A-record IP via Cloudflare API."
 fi
 
 # Get the DNS A Record IP
