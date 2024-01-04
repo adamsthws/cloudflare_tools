@@ -159,14 +159,17 @@ fi
 # Parse the DNS zone A-record IP (Via Cloudflare API)
 dns_record_a_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
-# Check if DNS Zone A-record IP has been obtained successfully
-if [ -n "$dns_record_a_ip" ]; then
-    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):  $dns_record_a_ip."
+# Define valid IPv4 (using Regex)
+valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
+
+# Check if DNS Zone A-record IP has been obtained successfully and is valid
+if [[ -n "$dns_record_a_ip" ]] && [[ "$dns_record_a_ip" =~ $valid_ipv4 ]]; then
+    debug "Check 9 (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $dns_record_a_ip."
 else
-    error "Error: There was a problem when attempting to obtain the DNS A-record IP via Cloudflare API."
+    error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$dns_record_a_ip'"
 fi
 
-# Get the DNS A Record IP
+# Get the DNS A Record IP via dig
 check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
 
 # Check if A Record IP has been retrieved sucessfully
@@ -176,24 +179,19 @@ else
     debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'): $check_record_ipv4."
 fi
 
+
 # Get the machine's WAN IP
-timeout_seconds=10
 machine_ipv4=$(
-    curl -s https://checkip.amazonaws.com --max-time $timeout_seconds ||
-    curl -s https://api.ipify.org --max-time $timeout_seconds ||
-    curl -s https://ipv4.icanhazip.com/ --max-time $timeout_seconds
+    curl -s https://checkip.amazonaws.com --max-time $curl_timeout ||
+    curl -s https://api.ipify.org --max-time $curl_timeout ||
+    curl -s https://ipv4.icanhazip.com/ --max-time $curl_timeout
 )
-# Check the IPv4 is obtainable
-if [ -z "$machine_ipv4" ]; then
-    error "Error: Can't get external IPv4"
-fi
-# Define valid IPv4 (using Regex)
-valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
-# Check the IPv4 is valid
-if ! [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
-    error "Error: IP Address returned was invalid: '$machine_ipv4'"
-else
+
+# Check if the machine's public IP has been retrieved sucessfully and is valid
+if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                  $machine_ipv4."
+else
+    error "Error: IP Address returned was invalid: '$machine_ipv4'"
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
