@@ -169,8 +169,13 @@ else
     error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$cf_a_record_ip'"
 fi
 
-# Get the published DNS A-record IP via dig
-published_a_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
+# Function to get the published IPv4 via dig
+get_published_a_record_ipv4() {
+    dig -t a +short ${DNS_RECORD} | tail -n1 | xargs
+}
+
+# Assign the published DNS A-record to a variable
+published_a_record_ipv4=$(get_published_a_record_ipv4)
 
 # Check if published A-record IP has been retrieved successfully and is valid
 if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
@@ -201,27 +206,39 @@ if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
             -H "X-Auth-Email: $EMAIL" \
             -H "Authorization: Bearer $API_KEY" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
-
     # Extract errors from the response
     error_message=$(echo "$response" | jq -r '.errors[]? | .message')
     if [ -n "$error_message" ]; then
         error "Error updating DNS record: $error_message"
     else
-        # Wait a few minutes to allow the DNS change to propagate / become active
-        sleep_seconds=300
-        debug "Paused for $sleep_seconds seconds. (Allows IP update to propagate before final check)..."
-        sleep $sleep_seconds
+        debug "IPv4 update applied to DNS zone A-record with the new value of: $machine_ipv4."
+        final_check_required="True"
+    fi
+else
+    debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
+    final_check_required="False"
+    exit 0
+fi
 
-        # Check the IPv4 change has been applied successfully
-        if [ "$published_a_record_ipv4" != "$machine_ipv4" ]; then
-            error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4, Domain IP: $published_a_record_ipv4"
-        else
+# Final check that the IPv4 update has taken effect
+if [ "$final_check_required" == "True" ]; then
+    attempts=15 # Repeat the check this many times
+    sleep_seconds=60 # How long to wait between checks
+    while [ $attempts -gt 0 ]; do
+        # Fetch the current published A Record IP again
+        published_a_record_ipv4=$(get_published_a_record_ipv4)
+        debug "Checking if IP update has taken effect: $published_a_record_ipv4 (Attempts remaining: $attempts)"
+        if [ "$published_a_record_ipv4" == "$machine_ipv4" ]; then
             debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
             exit 0
         fi
-    fi
+        sleep $sleep_seconds
+        attempts=$((attempts - 1))
+        debug "IP update hasn't taken effect yet. Trying again in $sleep_seconds seconds"
+    done
+
+    error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4, Last checked Domain IP: $published_a_record_ipv4"
 else
     debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
     exit 0
 fi
-
