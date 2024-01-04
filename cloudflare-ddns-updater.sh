@@ -71,13 +71,12 @@ curl_wait=5      # Seconds to wait between retries
 # Define a regex for validating the email address is in a valid format
 valid_email_format="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
-# Check if the entered email is valid
-if ! [[ $EMAIL =~ $email_regex ]]; then
+# Check if the entered email is valid (in the .env file)
+if ! [[ $EMAIL =~ $valid_email_format ]]; then
     error "Error: Invalid email address format: $EMAIL"
 else
     debug "Check 5  (of 12) passed. Email address format is valid: $EMAIL"
 fi
-
 
 # Check the subdomain (DNS_RECORD variable) in the .env file
 # Check if the dns_record field (subdomain) contains dot and matches the zone name
