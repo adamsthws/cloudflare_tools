@@ -108,7 +108,7 @@ else
     error "Error: There is a problem with the Cloudflare API token."
 fi
 
-# Get Cloudflare Zone ID
+# # Attempt to obtain the Cloudflare Zone ID
 zone_id=""
 for (( i=0; i<curl_retries; i++ )); do
     zone_id=$(curl -s -m "$curl_timeout" \
