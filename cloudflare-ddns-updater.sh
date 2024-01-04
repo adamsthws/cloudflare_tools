@@ -223,7 +223,7 @@ fi
 # Final check that the IPv4 update has taken effect
 if [ "$final_check_required" == "True" ]; then
     attempts=15 # Repeat the check this many times
-    sleep_seconds=60 # How long to wait between checks
+    sleep_seconds=3 # How long to wait between checks
     while [ $attempts -gt 0 ]; do
         # Fetch the current published A Record IP again
         published_a_record_ipv4=$(get_published_a_record_ipv4)
