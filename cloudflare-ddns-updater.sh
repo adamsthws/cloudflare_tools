@@ -140,7 +140,6 @@ for (( i=0; i<curl_retries; i++ )); do
                 -H "X-Auth-Email: $EMAIL" \
                 -H "Authorization: Bearer $API_KEY" \
                 | jq -r '.result[0].id')
-
     if [ -n "$dns_record_a_id" ]; then
         break # Exit loop if dns_record_a_id is obtained
     fi
