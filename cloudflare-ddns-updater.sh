@@ -222,8 +222,9 @@ fi
 
 # Final check that the IPv4 update has taken effect
 if [ "$final_check_required" == "True" ]; then
-    attempts=15 # Repeat the check this many times
-    sleep_seconds=3 # How long to wait between checks
+    attempts=20 # Repeat the check this many times
+    sleep_seconds=2 # How long to wait between checks
+    sleep $sleep_seconds # Pause before first check
     while [ $attempts -gt 0 ]; do
         # Fetch the current published A Record IP again
         published_a_record_ipv4=$(get_published_a_record_ipv4)
@@ -232,7 +233,7 @@ if [ "$final_check_required" == "True" ]; then
             debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
             exit 0
         fi
-        debug "IPv4 update hasn't taken effect yet. Trying again in $sleep_seconds seconds. ($attempts attempts remaining)"
+        debug "IPv4 update hasn't taken effect yet. Checking again in $sleep_seconds seconds. ($attempts attempts remaining)"
         sleep $sleep_seconds
         attempts=$((attempts - 1))
     done
