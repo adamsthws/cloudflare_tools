@@ -164,7 +164,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 
 # Check if DNS Zone A-record IP has been obtained successfully and is valid
 if [[ -n "$dns_record_a_ip" ]] && [[ "$dns_record_a_ip" =~ $valid_ipv4 ]]; then
-    debug "Check 9 (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $dns_record_a_ip."
+    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $dns_record_a_ip."
 else
     error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$dns_record_a_ip'"
 fi
@@ -176,7 +176,7 @@ check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
 if [ -z "${check_record_ipv4}" ]; then
     error "Error: No A Record is setup for ${DNS_RECORD}."
 else
-    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'): $check_record_ipv4."
+    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'):  $check_record_ipv4."
 fi
 
 
@@ -189,7 +189,7 @@ machine_ipv4=$(
 
 # Check if the machine's public IP has been retrieved sucessfully and is valid
 if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
-    debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                  $machine_ipv4."
+    debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                   $machine_ipv4."
 else
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 fi
