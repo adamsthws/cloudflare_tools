@@ -131,7 +131,7 @@ else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
 
-# Attempt to obtain the JSON response for the DNS zone A record (Via Cloudflare API)
+# Attempt to obtain the JSON response for the DNS zone A-record (Via Cloudflare API)
 dns_record_json=""
 for (( i=0; i<curl_retries; i++ )); do
     dns_record_json=$(curl -s -m "$curl_timeout" \
@@ -157,34 +157,33 @@ else
 fi
 
 # Parse the DNS zone A-record IP (Via Cloudflare API)
-dns_record_a_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
+cf_a_record_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
 # Define valid IPv4 (using Regex)
 valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
 
 # Check if DNS Zone A-record IP has been obtained successfully and is valid
-if [[ -n "$dns_record_a_ip" ]] && [[ "$dns_record_a_ip" =~ $valid_ipv4 ]]; then
-    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $dns_record_a_ip."
+if [[ -n "$cf_a_record_ip" ]] && [[ "$cf_a_record_ip" =~ $valid_ipv4 ]]; then
+    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
 else
-    error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$dns_record_a_ip'"
+    error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$cf_a_record_ip'"
 fi
 
-# Get the DNS A Record IP via dig
-check_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
+# Get the published DNS A-record IP via dig
+published_a_record_ipv4=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
 
-# Check if A Record IP has been retrieved sucessfully
-if [ -z "${check_record_ipv4}" ]; then
-    error "Error: No A Record is setup for ${DNS_RECORD}."
+# Check if published A-record IP has been retrieved successfully and is valid
+if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
+    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
 else
-    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'):  $check_record_ipv4."
+    error "Error: No valid A Record is set up for ${DNS_RECORD}, or the IP is invalid: '$published_a_record_ipv4'."
 fi
-
 
 # Get the machine's WAN IP
 machine_ipv4=$(
-    curl -s https://checkip.amazonaws.com --max-time $curl_timeout ||
-    curl -s https://api.ipify.org --max-time $curl_timeout ||
-    curl -s https://ipv4.icanhazip.com/ --max-time $curl_timeout
+    curl -s https://checkip.amazonaws.com  --max-time $curl_timeout ||
+    curl -s https://api.ipify.org          --max-time $curl_timeout ||
+    curl -s https://ipv4.icanhazip.com/    --max-time $curl_timeout
 )
 
 # Check if the machine's public IP has been retrieved sucessfully and is valid
@@ -195,7 +194,7 @@ else
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
-if [ $dns_record_a_ip != $machine_ipv4 ]; then
+if [ $cf_a_record_ip != $machine_ipv4 ]; then
     # If different, update the A record
     curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$(echo $dns_record_a_id | jq -r '{"result"}[] | .[0] | .id')" \
             -H "Content-Type: application/json" \
@@ -208,14 +207,14 @@ if [ $dns_record_a_ip != $machine_ipv4 ]; then
     debug "Paused for $sleep_seconds seconds. (Allows IP update to propogate before final check)..."
     sleep $sleep_seconds
     # Check the IPv4 change has been applied sucessfully
-    if [ $check_record_ipv4 != $machine_ipv4 ]; then
-        error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4 Domain IP: $check_record_ipv4"
+    if [ $published_a_record_ipv4 != $machine_ipv4 ]; then
+        error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4 Domain IP: $published_a_record_ipv4"
     else
-        debug "Success: IPv4 updated on Cloudflare with the new value of: $check_record_ipv4."
+        debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
         exit 0
     fi
 else
-    debug "Success: (No change) The machine IPv4 matches the domain IPv4: $check_record_ipv4."
+    debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
     exit 0
     fi
 fi
