@@ -227,14 +227,14 @@ if [ "$final_check_required" == "True" ]; then
     while [ $attempts -gt 0 ]; do
         # Fetch the current published A Record IP again
         published_a_record_ipv4=$(get_published_a_record_ipv4)
-        debug "Checking if IP update has taken effect: $published_a_record_ipv4 (Attempts remaining: $attempts)"
+        debug "Checking if IPv4 update has taken effect. Published IP: $published_a_record_ipv4"
         if [ "$published_a_record_ipv4" == "$machine_ipv4" ]; then
             debug "Success: IPv4 updated on Cloudflare with the new value of: $published_a_record_ipv4."
             exit 0
         fi
+        debug "IPv4 update hasn't taken effect yet. Trying again in $sleep_seconds seconds. ($attempts attempts remaining)"
         sleep $sleep_seconds
         attempts=$((attempts - 1))
-        debug "IP update hasn't taken effect yet. Trying again in $sleep_seconds seconds"
     done
 
     error "Error: A change of IP was attempted but was unsuccessful. Current Machine IP: $machine_ipv4, Last checked Domain IP: $published_a_record_ipv4"
