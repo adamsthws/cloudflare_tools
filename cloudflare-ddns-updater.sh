@@ -108,20 +108,29 @@ else
     error "Error: There is a problem with the Cloudflare API token."
 fi
 
-
 # Get Cloudflare Zone ID
-zone_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
-            -H "Content-Type: application/json" \
-            -H "X-Auth-Email: $EMAIL" \
-            -H "Authorization: Bearer $API_KEY" \
-            | jq -r '{"result"}[] | .[0] | .id'
-        )
-# Check if the Zone ID is avilable
-if [ $zone_id ]; then
+zone_id=""
+for (( i=0; i<curl_retries; i++ )); do
+    zone_id=$(curl -s -m "$curl_timeout" \
+                -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
+                -H "Content-Type: application/json" \
+                -H "X-Auth-Email: $EMAIL" \
+                -H "Authorization: Bearer $API_KEY" \
+                | jq -r '.result[0].id')
+    if [ -n "$zone_id" ]; then
+        break # Exit loop if zone_id is obtained
+    fi
+    # Retry if unsuccessful
+    sleep "$curl_wait"
+done
+
+# Check if the Zone ID has been obtained successfully
+if [ -n "$zone_id" ]; then
     debug "Check 7 (of 10) passed. Cloudflare Zone ID is: $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
+
 
 # Get DNS zone A record IP (Via Cloudflare API)
 dns_record_a_id=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD"  \
