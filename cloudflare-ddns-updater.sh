@@ -51,16 +51,16 @@ fi
 
 # Check if jq is installed
 if ! command -v jq >/dev/null 2>&1; then
-    error "Error: jq is not installed."
+    error "Error: Required utility; 'jq' is not installed."
 else
-    debug "Check 3 (of 10) passed. 'jq' is installed."
+    debug "Check 3 (of 10) passed. Required utility; 'jq' is installed."
 fi
 
 # Check if cURL is installed
 if ! command -v curl >/dev/null 2>&1; then
-    error "Error: cURL is not installed."
+    error "Error: Required utility; 'cURL' is not installed."
 else
-    debug "Check 4 (of 10) passed. 'cURL' is installed."
+    debug "Check 4 (of 10) passed. Required utility; 'cURL' is installed."
 fi
 
 # Set cURL parameters
@@ -68,7 +68,7 @@ curl_timeout=10  # How many seconds before cURL times out
 curl_retries=3   # Maximum number of retries
 curl_wait=5      # Seconds to wait between retries
 
-# Check the subdomain
+# Check the subdomain (DNS_RECORD variable) in the .env file
 # Check if the dns_record field (subdomain) contains dot
 if [[ $DNS_RECORD == *.* ]]; then
     # if the zone_name field (domain) is not in the dns_record
