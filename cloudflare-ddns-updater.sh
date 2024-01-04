@@ -161,7 +161,7 @@ dns_record_a_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
 # Check if DNS Zone A-record IP has been obtained successfully
 if [ -n "$dns_record_a_ip" ]; then
-    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $dns_record_a_ip."
+    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):      $dns_record_a_ip."
 else
     error "Error: There was a problem when attempting to obtain the DNS A-record IP via Cloudflare API."
 fi
