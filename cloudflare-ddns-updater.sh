@@ -30,7 +30,7 @@ if source "$script_dir/.env"; then
     if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
-        debug "Check 1 (of 10) passed. .env file loaded."
+        debug "Check 1  (of 10) passed. .env file loaded."
     fi
 else
     error "Error: failed to source file: $script_dir/.env"
@@ -46,21 +46,21 @@ fi
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
     error "Error: The script is already running."
 else
-    debug "Check 2 (of 10) passed. Script is not already running."
+    debug "Check 2  (of 10) passed. Script is not already running."
 fi
 
 # Check if jq is installed
 if ! command -v jq >/dev/null 2>&1; then
     error "Error: Required utility; 'jq' is not installed."
 else
-    debug "Check 3 (of 10) passed. Required utility; 'jq' is installed."
+    debug "Check 3  (of 10) passed. Required utility; 'jq' is installed."
 fi
 
 # Check if cURL is installed
 if ! command -v curl >/dev/null 2>&1; then
     error "Error: Required utility; 'cURL' is not installed."
 else
-    debug "Check 4 (of 10) passed. Required utility; 'cURL' is installed."
+    debug "Check 4  (of 10) passed. Required utility; 'cURL' is installed."
 fi
 
 # Set cURL parameters
@@ -75,7 +75,7 @@ if [[ $DNS_RECORD == *.* ]]; then
     if [[ $DNS_RECORD != *.$ZONE_NAME ]]; then
         error "Error: The Zone in DNS_RECORD does not match the defined Zone in ZONE_NAME."
     else
-        debug "Check 5 (of 10) passed. DNS zone to check/update: $DNS_RECORD."
+        debug "Check 5  (of 10) passed. DNS zone to check/update: $DNS_RECORD."
     fi
 # check if the dns_record (subdomain) is not complete and contains invalid characters
 elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
@@ -83,7 +83,7 @@ elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
 # if the dns_record (subdomain) is not complete, complete it
 else
     DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
-    debug debug "Check 5 (of 10) passed. DNS zone to check/update: $DNS_RECORD."
+    debug debug "Check 5  (of 10) passed. DNS zone to check/update: $DNS_RECORD."
 fi
 
 # Attempt to obtain the Cloudflare User ID.
@@ -103,7 +103,7 @@ done
 
 # Check if User ID has been obtained sucessfully
 if [ -n "$user_id" ]; then
-    debug "Check 6 (of 10) passed. Cloudflare User ID is: $user_id."
+    debug "Check 6  (of 10) passed. Cloudflare User ID is:     $user_id."
 else
     error "Error: There is a problem with the Cloudflare API token."
 fi
@@ -126,7 +126,7 @@ done
 
 # Check if the Zone ID has been obtained successfully
 if [ -n "$zone_id" ]; then
-    debug "Check 7 (of 10) passed. Cloudflare Zone ID is: $zone_id."
+    debug "Check 7  (of 10) passed. Cloudflare Zone ID is:     $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
@@ -151,7 +151,7 @@ dns_record_a_id=$(echo "$dns_record_json" | jq -r '.result[0].id')
 
 # Check if DNS Record A ID has been obtained successfully
 if [ -n "$dns_record_a_id" ]; then
-    debug "Check 8 (of 11) passed. Cloudflare A-record ID is: $dns_record_a_id."
+    debug "Check 8  (of 11) passed. Cloudflare A-record ID is: $dns_record_a_id."
 else
     error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
 fi
@@ -161,7 +161,7 @@ dns_record_a_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
 # Check if DNS Zone A-record IP has been obtained successfully
 if [ -n "$dns_record_a_ip" ]; then
-    debug "Check 9 (of 11) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
+    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API) is: $dns_record_a_ip."
 else
     error "Error: There was a problem when attempting to obtain the DNS A-record IP via Cloudflare API."
 fi
