@@ -69,22 +69,20 @@ curl_retries=3   # Maximum number of retries
 curl_wait=5      # Seconds to wait between retries
 
 # Check the subdomain (DNS_RECORD variable) in the .env file
-# Check if the dns_record field (subdomain) contains dot
+# Check if the dns_record field (subdomain) contains dot and matches the zone name
 if [[ $DNS_RECORD == *.* ]]; then
-    # if the zone_name field (domain) is not in the dns_record
     if [[ $DNS_RECORD != *.$ZONE_NAME ]]; then
         error "Error: The Zone in DNS_RECORD does not match the defined Zone in ZONE_NAME."
-    else
-        debug "Check 5  (of 10) passed. DNS zone to check/update: $DNS_RECORD."
     fi
-# check if the dns_record (subdomain) is not complete and contains invalid characters
+# Check if the dns_record (subdomain) is not complete and contains invalid characters
 elif ! [[ $DNS_RECORD =~ ^[a-zA-Z0-9-]+$ ]]; then
-    error "Error: The DNS Record contains illegal charecters - e.g: ., @, %, *, _"
-# if the dns_record (subdomain) is not complete, complete it
+    error "Error: The DNS Record contains illegal characters - e.g: ., @, %, *, _"
+# If the dns_record (subdomain) is not complete, complete it
 else
     DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
-    debug debug "Check 5  (of 10) passed. DNS zone to check/update: $DNS_RECORD."
 fi
+# Final confirmation/debug message
+debug "Check 5  (of 10) passed. DNS zone to check/update: $DNS_RECORD."
 
 # Attempt to obtain the Cloudflare User ID.
 user_id=""
@@ -223,7 +221,7 @@ fi
 # Final check that the IPv4 update has taken effect
 if [ "$final_check_required" == "True" ]; then
     attempts=20 # Repeat the check this many times
-    sleep_seconds=2 # How long to wait between checks
+    sleep_seconds=15 # How long to wait between checks
     sleep $sleep_seconds # Pause before first check
     while [ $attempts -gt 0 ]; do
         # Fetch the current published A Record IP again
