@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Enable Bash strict mode
-# https://olivergondza.github.io/2019/10/01/bash-strict-mode.html
+# Enable Bash 'strict mode'
+# See: https://olivergondza.github.io/2019/10/01/bash-strict-mode.html
 set -euo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
@@ -30,7 +30,7 @@ if source "$script_dir/.env"; then
     if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
-        debug "Check 1  (of 11) passed. Required file '.env' loaded sucessfully."
+        debug "Check 1  (of 12) passed. Required file '.env' loaded sucessfully."
     fi
 else
     error "Error: failed to source file: $script_dir/.env"
@@ -46,27 +46,38 @@ fi
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
     error "Error: The script is already running."
 else
-    debug "Check 2  (of 11) passed. Script is not already running."
+    debug "Check 2  (of 12) passed. Script is not already running."
 fi
 
 # Check if jq is installed
 if ! command -v jq >/dev/null 2>&1; then
     error "Error: Required utility; 'jq' is not installed."
 else
-    debug "Check 3  (of 11) passed. Required utility; 'jq' is installed."
+    debug "Check 3  (of 12) passed. Required utility; 'jq' is installed."
 fi
 
 # Check if cURL is installed
 if ! command -v curl >/dev/null 2>&1; then
     error "Error: Required utility; 'cURL' is not installed."
 else
-    debug "Check 4  (of 11) passed. Required utility; 'cURL' is installed."
+    debug "Check 4  (of 12) passed. Required utility; 'cURL' is installed."
 fi
 
 # Set cURL parameters
 curl_timeout=10  # How many seconds before cURL times out
 curl_retries=3   # Maximum number of retries
 curl_wait=5      # Seconds to wait between retries
+
+# Define a regex for validating the email address is in a valid format
+valid_email_format="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+
+# Check if the entered email is valid
+if ! [[ $EMAIL =~ $email_regex ]]; then
+    error "Error: Invalid email address format: $EMAIL"
+else
+    debug "Check 5  (of 12) passed. Email address format is valid: $EMAIL"
+fi
+
 
 # Check the subdomain (DNS_RECORD variable) in the .env file
 # Check if the dns_record field (subdomain) contains dot and matches the zone name
@@ -82,7 +93,7 @@ else
     DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
 fi
 # Final confirmation/debug message
-debug "Check 5  (of 11) passed. DNS zone to check/update: $DNS_RECORD."
+debug "Check 6  (of 12) passed. DNS zone to check/update: $DNS_RECORD."
 
 # Attempt to obtain the Cloudflare User ID.
 user_id=""
@@ -101,7 +112,7 @@ done
 
 # Check if User ID has been obtained sucessfully
 if [ -n "$user_id" ]; then
-    debug "Check 6  (of 11) passed. Cloudflare User ID:     $user_id."
+    debug "Check 7  (of 12) passed. Cloudflare User ID:     $user_id."
 else
     error "Error: There is a problem with the Cloudflare API token."
 fi
@@ -124,7 +135,7 @@ done
 
 # Check if the Zone ID has been obtained successfully
 if [ -n "$zone_id" ]; then
-    debug "Check 7  (of 11) passed. Cloudflare Zone ID:     $zone_id."
+    debug "Check 8  (of 12) passed. Cloudflare Zone ID:     $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain) or the email address (username)."
 fi
@@ -149,7 +160,7 @@ dns_record_a_id=$(echo "$dns_record_json" | jq -r '.result[0].id')
 
 # Check if DNS Record A ID has been obtained successfully
 if [ -n "$dns_record_a_id" ]; then
-    debug "Check 8  (of 11) passed. Cloudflare A-record ID: $dns_record_a_id."
+    debug "Check 9  (of 12) passed. Cloudflare A-record ID: $dns_record_a_id."
 else
     error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
 fi
@@ -162,7 +173,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 
 # Check if DNS Zone A-record IP has been obtained successfully and is valid
 if [[ -n "$cf_a_record_ip" ]] && [[ "$cf_a_record_ip" =~ $valid_ipv4 ]]; then
-    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
+    debug "Check 10 (of 12) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
 else
     error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$cf_a_record_ip'"
 fi
@@ -177,12 +188,12 @@ published_a_record_ipv4=$(get_published_a_record_ipv4)
 
 # Check if published A-record IP has been retrieved successfully and is valid
 if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
-    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
+    debug "Check 11 (of 12) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
 else
     error "Error: No valid A Record is set up for ${DNS_RECORD}, or the IP is invalid: '$published_a_record_ipv4'."
 fi
 
-# Get the machine's WAN IP
+# Get the machine's WAN IP (with multiple fallback options)
 machine_ipv4=$(
     curl -s https://checkip.amazonaws.com  --max-time $curl_timeout ||
     curl -s https://api.ipify.org          --max-time $curl_timeout ||
@@ -191,7 +202,7 @@ machine_ipv4=$(
 
 # Check if the machine's public IP has been retrieved sucessfully and is valid
 if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
-    debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                   $machine_ipv4."
+    debug "Check 12 (of 12) passed. Machine's public (WAN) IP:                   $machine_ipv4."
 else
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 fi
