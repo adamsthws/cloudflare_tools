@@ -227,7 +227,6 @@ fi
 
 # Function to obtain the machine's WAN IPv4
 attempt_service() {
-    debug "Attempting to obtain IPv4 from $1..."
     local ip=$(curl -s "$1" --max-time "$attempt_timeout")
     # Validate the obtained IP address
     if [[ $ip =~ $valid_ipv4 ]]; then
@@ -249,7 +248,7 @@ machine_ipv4=$(
 )
 
 # Check if the machine's public IP has been retrieved sucessfully
-if [[ -n "$machine_ipv4" ]]; then
+if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     debug "Check 12 (of 12) passed. Machine's public (WAN) IP:                   $machine_ipv4."
 else
     error "Error: Failed to obtain a valid external IPv4 address for the machine."
