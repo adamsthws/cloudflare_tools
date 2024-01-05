@@ -30,7 +30,7 @@ if source "$script_dir/.env"; then
     if ! [[ " ${debug_level_allowed[*]} " =~ " $DEBUG_LEVEL " ]]; then
         error "Invalid DEBUG_LEVEL: '$DEBUG_LEVEL'. Must be one of: ${debug_level_allowed[*]}."
     else
-        debug "Check 1  (of 11) passed. Required file '.env' loaded sucessfully."
+        debug "Check 1  (of 12) passed. Required file '.env' loaded sucessfully."
     fi
 else
     error "Error: failed to source file: $script_dir/.env"
@@ -46,21 +46,21 @@ fi
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
     error "Error: The script is already running."
 else
-    debug "Check 2  (of 11) passed. Script is not already running."
+    debug "Check 2  (of 12) passed. Script is not already running."
 fi
 
 # Check if jq is installed
 if ! command -v jq >/dev/null 2>&1; then
     error "Error: Required utility; 'jq' is not installed."
 else
-    debug "Check 3  (of 11) passed. Required utility; 'jq' is installed."
+    debug "Check 3  (of 12) passed. Required utility; 'jq' is installed."
 fi
 
 # Check if cURL is installed
 if ! command -v curl >/dev/null 2>&1; then
     error "Error: Required utility; 'cURL' is not installed."
 else
-    debug "Check 4  (of 11) passed. Required utility; 'cURL' is installed."
+    debug "Check 4  (of 12) passed. Required utility; 'cURL' is installed."
 fi
 
 # Set cURL parameters
@@ -82,40 +82,60 @@ else
     DNS_RECORD="$DNS_RECORD.$ZONE_NAME"
 fi
 # Final confirmation/debug message
-debug "Check 5  (of 11) passed. DNS zone to check/update: $DNS_RECORD."
+debug "Check 5  (of 12) passed. DNS zone to check/update: $DNS_RECORD."
 
 # Attempt to obtain the Cloudflare User ID.
 user_id=""
+user_id_json=""
 for (( i=0; i<curl_retries; i++ )); do
-    user_id=$(curl -s -m "$curl_timeout" \
-                -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
-                -H "Authorization: Bearer $API_TOKEN" \
-                -H "Content-Type: application/json" \
-                | jq -r '.result | .id')
-    if [ -n "$user_id" ]; then
-        break # Exit loop if user_id is obtained
+    user_id_json=$(curl -s -m "$curl_timeout" \
+                    -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+                    -H "Authorization: Bearer $API_TOKEN" \
+                    -H "Content-Type: application/json")
+    # Check if curl command was successful
+    if [ $? -eq 0 ]; then
+        # Check if the response is valid JSON
+        if echo "$user_id_json" | jq empty 2>/dev/null; then
+            # If valid, extract the user_id
+            user_id=$(echo "$user_id_json" | jq -r '.result | .id')
+            if [ -n "$user_id" ]; then
+                break # Exit loop if user_id is obtained
+            fi
+        fi
+    else
+        debug "Curl command failed whilst retrieving Cloudflare User ID, retrying in $curl_wait seconds..."
     fi
-    # Retry if unsuccessful.
+    # Retry if unsuccessful
     sleep "$curl_wait"
 done
 
-# Check if User ID has been obtained sucessfully
+# Check if User ID has been obtained successfully
 if [ -n "$user_id" ]; then
-    debug "Check 6  (of 11) passed. Cloudflare User ID:     $user_id."
+    debug "Check 6 (of 12) passed. Cloudflare User ID: $user_id."
 else
-    error "Error: There is a problem with the Cloudflare API token."
+    error "Error: There is a problem with the Cloudflare API token or JSON response."
 fi
 
-# # Attempt to obtain the Cloudflare Zone ID
+# Attempt to obtain the Cloudflare Zone ID.
 zone_id=""
+zone_id_json=""
 for (( i=0; i<curl_retries; i++ )); do
-    zone_id=$(curl -s -m "$curl_timeout" \
+    zone_id_json=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
-                -H "Authorization: Bearer $API_TOKEN" \
-                | jq -r '.result[0].id')
-    if [ -n "$zone_id" ]; then
-        break # Exit loop if zone_id is obtained
+                -H "Authorization: Bearer $API_TOKEN")
+    # Check if curl command was successful
+    if [ $? -eq 0 ]; then
+        # Check if the response is valid JSON
+        if echo "$zone_id_json" | jq empty 2>/dev/null; then
+            # If valid, extract the zone_id
+            zone_id=$(echo "$zone_id_json" | jq -r '.result[0].id')
+            if [ -n "$zone_id" ]; then
+                break # Exit loop if zone_id is obtained
+            fi
+        fi
+    else
+        debug "Curl command failed whilst retrieving Cloudflare Zone ID, retrying in $curl_wait seconds..."
     fi
     # Retry if unsuccessful
     sleep "$curl_wait"
@@ -123,30 +143,35 @@ done
 
 # Check if the Zone ID has been obtained successfully
 if [ -n "$zone_id" ]; then
-    debug "Check 7  (of 11) passed. Cloudflare Zone ID:     $zone_id."
+    debug "Check 7 (of 12) passed. Cloudflare Zone ID: $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain)."
 fi
 
 # Attempt to obtain the JSON response for the DNS zone A-record (Via Cloudflare API)
 dns_record_json=""
-valid_json=false
+valid_dns_record_json=false
 for (( i=0; i<curl_retries; i++ )); do
     dns_record_json=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $API_TOKEN")
-    # Check if the response is valid JSON
-    if echo "$dns_record_json" | jq empty 2>/dev/null; then
-        valid_json=true
-        break # Exit loop if valid JSON response is obtained
+    # Check if curl command was successful
+    if [ $? -eq 0 ]; then
+        # Check if the response is valid JSON
+        if echo "$dns_record_json" | jq empty 2>/dev/null; then
+            valid_dns_record_json=true
+            break # Exit loop if valid JSON response is obtained
+        fi
+    else
+        debug "Curl command failed whilst retrieving Cloudflare DNS A-record JSON, retrying in $curl_wait seconds..."
     fi
     # Retry if unsuccessful
     sleep "$curl_wait"
 done
 
-# Proceed only if valid JSON is obtained
-if [ "$valid_json" = true ]; then
+# Check if valid JSON has been obtained sucessfully
+if [ "$valid_dns_record_json" = true ]; then
     debug "Check 8  (of 12) passed. Valid JSON response obtained."
 else
     error "Error: Failed to obtain a valid JSON response."
@@ -211,13 +236,22 @@ if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $API_TOKEN" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
-    # Extract errors from the response
-    error_message=$(echo "$response" | jq -r '.errors[]? | .message')
-    if [ -n "$error_message" ]; then
-        error "Error updating Cloudflare DNS A-record: $error_message"
+    # Check if cURL failed
+    if [ $? -ne 0 ]; then
+        error "Error: Curl command failed while attempting to update the DNS A-record IP."
+    fi
+    # Check if the response is valid JSON
+    if echo "$response" | jq empty 2>/dev/null; then
+        # Extract errors from the response
+        error_message=$(echo "$response" | jq -r '.errors[]? | .message')
+        if [ -n "$error_message" ]; then
+            error "Error updating Cloudflare DNS A-record: $error_message"
+        else
+            debug "IPv4 update applied to DNS zone A-record with the new value of: $machine_ipv4."
+            final_check_required="True"
+        fi
     else
-        debug "IPv4 update applied to DNS zone A-record with the new value of: $machine_ipv4."
-        final_check_required="True"
+        error "Error: Invalid JSON response from Cloudflare."
     fi
 else
     debug "Success: (No change) The machine IPv4 matches the domain IPv4: $published_a_record_ipv4."
