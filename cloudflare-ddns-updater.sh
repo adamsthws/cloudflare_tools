@@ -111,7 +111,7 @@ done
 
 # Check if User ID has been obtained successfully
 if [ -n "$user_id" ]; then
-    debug "Check 6 (of 12) passed. Cloudflare User ID: $user_id."
+    debug "Check 6  (of 12) passed. Cloudflare User ID: $user_id."
 else
     error "Error: There is a problem with the Cloudflare API token or JSON response."
 fi
@@ -143,7 +143,7 @@ done
 
 # Check if the Zone ID has been obtained successfully
 if [ -n "$zone_id" ]; then
-    debug "Check 7 (of 12) passed. Cloudflare Zone ID: $zone_id."
+    debug "Check 7  (of 12) passed. Cloudflare Zone ID: $zone_id."
 else
     error "Error: There is a problem with getting the Zone ID (sub-domain)."
 fi
