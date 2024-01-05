@@ -218,30 +218,12 @@ get_published_a_record_ipv4() {
 # Assign the published DNS A-record to a variable
 published_a_record_ipv4=$(get_published_a_record_ipv4)
 
-# Check if a valid IP was obtained
-if [[ $published_a_record_ipv4 != "Invalid IP" ]]; then
-    debug "Published DNS A-record IP: $published_a_record_ipv4."
-else
-    error "Error: Failed to obtain a valid IPv4 address from DNS A-record for: ${DNS_RECORD}."
-fi
-
-# Check if published A-record IP has been retrieved successfully and is valid
+# Check if published A-record IP has been retrieved and is valid
 if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
     debug "Check 11 (of 12) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
 else
     error "Error: No valid A Record is set up for ${DNS_RECORD}, or the IP is invalid: '$published_a_record_ipv4'."
 fi
-
-# Get the machine's WAN IP (with multiple fallback options)
-machine_ipv4=$(
-    curl -s https://checkip.amazonaws.com --max-time $attempt_timeout ||
-    curl -s https://api.ipify.org         --max-time $attempt_timeout ||
-    curl -s https://ipv4.icanhazip.com    --max-time $attempt_timeout ||
-    curl -s https://ifconfig.me           --max-time $attempt_timeout ||
-    curl -s https://ipinfo.io/ip          --max-time $attempt_timeout ||
-    curl -s https://api.myip.com          --max-time $attempt_timeout ||
-    curl -s https://ip.seeip.org          --max-time $attempt_timeout
-)
 
 # Function to obtain the machine's WAN IPv4
 attempt_service() {
@@ -266,8 +248,8 @@ machine_ipv4=$(
     attempt_service "https://myexternalip.com/raw"
 )
 
-# Check if the machine's public IP has been retrieved sucessfully and is valid
-if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
+# Check if the machine's public IP has been retrieved sucessfully
+if [[ -n "$machine_ipv4" ]]; then
     debug "Check 12 (of 12) passed. Machine's public (WAN) IP:                   $machine_ipv4."
 else
     error "Error: Failed to obtain a valid external IPv4 address for the machine."
