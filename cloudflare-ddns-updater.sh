@@ -64,7 +64,7 @@ else
 fi
 
 # Set cURL parameters
-curl_timeout=10  # How many seconds before cURL times out
+curl_timeout=10  # Seconds before cURL times out
 curl_retries=3   # Maximum number of retries
 curl_wait=5      # Seconds to wait between retries
 
@@ -130,24 +130,34 @@ fi
 
 # Attempt to obtain the JSON response for the DNS zone A-record (Via Cloudflare API)
 dns_record_json=""
+valid_json=false
 for (( i=0; i<curl_retries; i++ )); do
     dns_record_json=$(curl -s -m "$curl_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $API_TOKEN")
-    if [ -n "$dns_record_json" ]; then
-        break # Exit loop if response is obtained
+    # Check if the response is valid JSON
+    if echo "$dns_record_json" | jq empty 2>/dev/null; then
+        valid_json=true
+        break # Exit loop if valid JSON response is obtained
     fi
     # Retry if unsuccessful
     sleep "$curl_wait"
 done
+
+# Proceed only if valid JSON is obtained
+if [ "$valid_json" = true ]; then
+    debug "Check 8  (of 12) passed. Valid JSON response obtained."
+else
+    error "Error: Failed to obtain a valid JSON response."
+fi
 
 # Extract the DNS Record A ID from the JSON response
 dns_record_a_id=$(echo "$dns_record_json" | jq -r '.result[0].id')
 
 # Check if DNS Record A ID has been obtained successfully
 if [ -n "$dns_record_a_id" ]; then
-    debug "Check 8  (of 11) passed. Cloudflare A-record ID: $dns_record_a_id."
+    debug "Check 9  (of 12) passed. Cloudflare A-record ID: $dns_record_a_id."
 else
     error "Error: There was a problem when attempting to obtain the DNS A Record ID via Cloudflare API."
 fi
@@ -160,7 +170,7 @@ valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]
 
 # Check if DNS Zone A-record IP has been obtained successfully and is valid
 if [[ -n "$cf_a_record_ip" ]] && [[ "$cf_a_record_ip" =~ $valid_ipv4 ]]; then
-    debug "Check 9  (of 11) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
+    debug "Check 10 (of 12) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
 else
     error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$cf_a_record_ip'"
 fi
@@ -175,7 +185,7 @@ published_a_record_ipv4=$(get_published_a_record_ipv4)
 
 # Check if published A-record IP has been retrieved successfully and is valid
 if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
-    debug "Check 10 (of 11) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
+    debug "Check 11 (of 12) passed. DNS zone A-record IP (via 'domain groper'):  $published_a_record_ipv4."
 else
     error "Error: No valid A Record is set up for ${DNS_RECORD}, or the IP is invalid: '$published_a_record_ipv4'."
 fi
@@ -189,7 +199,7 @@ machine_ipv4=$(
 
 # Check if the machine's public IP has been retrieved sucessfully and is valid
 if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
-    debug "Check 11 (of 11) passed. Machine's public (WAN) IP:                   $machine_ipv4."
+    debug "Check 12 (of 12) passed. Machine's public (WAN) IP:                   $machine_ipv4."
 else
     error "Error: IP Address returned was invalid: '$machine_ipv4'"
 fi
