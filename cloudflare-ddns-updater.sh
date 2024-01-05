@@ -288,7 +288,7 @@ fi
 if [ "$final_check_required" == "True" ]; then
     attempts=20 # Repeat the check this many times
     sleep_seconds=15 # How long to wait between checks
-    Echo "Paused for $sleep_seconds before final check..."
+    debug "Paused for $sleep_seconds before final check..."
     sleep $sleep_seconds # Pause before first check
     while [ $attempts -gt 0 ]; do
         # Fetch the current published A Record IP again
