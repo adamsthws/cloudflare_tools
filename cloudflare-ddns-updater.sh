@@ -63,10 +63,13 @@ else
     debug "Check 4  (of 12) passed. Required utility; 'cURL' is installed."
 fi
 
-# Set cURL parameters
-curl_timeout=10  # Seconds before cURL times out
-curl_retries=3   # Maximum number of retries
-curl_wait=5      # Seconds to wait between retries
+# Set retry parameters
+attempt_timeout=10   # Seconds before command times out
+retry_attepts=3      # Maximum number of retries
+retry_wait=5         # Seconds to wait between retries
+
+# Define valid IPv4 (using Regex)
+valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
 
 # Check the subdomain (DNS_RECORD variable) in the .env file
 # Check if the dns_record field (subdomain) contains dot and matches the zone name
@@ -87,8 +90,8 @@ debug "Check 5  (of 12) passed. DNS zone to check/update: $DNS_RECORD."
 # Attempt to obtain the Cloudflare User ID.
 user_id=""
 user_id_json=""
-for (( i=0; i<curl_retries; i++ )); do
-    user_id_json=$(curl -s -m "$curl_timeout" \
+for (( i=0; i<retry_attepts; i++ )); do
+    user_id_json=$(curl -s -m "$attempt_timeout" \
                     -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
                     -H "Authorization: Bearer $API_TOKEN" \
                     -H "Content-Type: application/json")
@@ -103,10 +106,10 @@ for (( i=0; i<curl_retries; i++ )); do
             fi
         fi
     else
-        debug "Curl command failed whilst retrieving Cloudflare User ID, retrying in $curl_wait seconds..."
+        debug "Curl command failed whilst retrieving Cloudflare User ID, retrying in $retry_wait seconds..."
     fi
     # Retry if unsuccessful
-    sleep "$curl_wait"
+    sleep "$retry_wait"
 done
 
 # Check if User ID has been obtained successfully
@@ -119,8 +122,8 @@ fi
 # Attempt to obtain the Cloudflare Zone ID.
 zone_id=""
 zone_id_json=""
-for (( i=0; i<curl_retries; i++ )); do
-    zone_id_json=$(curl -s -m "$curl_timeout" \
+for (( i=0; i<retry_attepts; i++ )); do
+    zone_id_json=$(curl -s -m "$attempt_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $API_TOKEN")
@@ -135,10 +138,10 @@ for (( i=0; i<curl_retries; i++ )); do
             fi
         fi
     else
-        debug "Curl command failed whilst retrieving Cloudflare Zone ID, retrying in $curl_wait seconds..."
+        debug "Curl command failed whilst retrieving Cloudflare Zone ID, retrying in $retry_wait seconds..."
     fi
     # Retry if unsuccessful
-    sleep "$curl_wait"
+    sleep "$retry_wait"
 done
 
 # Check if the Zone ID has been obtained successfully
@@ -151,8 +154,8 @@ fi
 # Attempt to obtain the JSON response for the DNS zone A-record (Via Cloudflare API)
 dns_record_json=""
 valid_dns_record_json=false
-for (( i=0; i<curl_retries; i++ )); do
-    dns_record_json=$(curl -s -m "$curl_timeout" \
+for (( i=0; i<retry_attepts; i++ )); do
+    dns_record_json=$(curl -s -m "$attempt_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $API_TOKEN")
@@ -164,10 +167,10 @@ for (( i=0; i<curl_retries; i++ )); do
             break # Exit loop if valid JSON response is obtained
         fi
     else
-        debug "Curl command failed whilst retrieving Cloudflare DNS A-record JSON, retrying in $curl_wait seconds..."
+        debug "Curl command failed whilst retrieving Cloudflare DNS A-record JSON, retrying in $retry_wait seconds..."
     fi
     # Retry if unsuccessful
-    sleep "$curl_wait"
+    sleep "$retry_wait"
 done
 
 # Check if valid JSON has been obtained sucessfully
@@ -190,9 +193,6 @@ fi
 # Parse the DNS zone A-record IP (Via Cloudflare API)
 cf_a_record_ip=$(echo "$dns_record_json" | jq -r '.result[0].content')
 
-# Define valid IPv4 (using Regex)
-valid_ipv4='^((25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])\.){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9]|)[0-9])$'
-
 # Check if DNS Zone A-record IP has been obtained successfully and is valid
 if [[ -n "$cf_a_record_ip" ]] && [[ "$cf_a_record_ip" =~ $valid_ipv4 ]]; then
     debug "Check 10 (of 12) passed. DNS Zone A-record IP (via Cloudflare API):   $cf_a_record_ip."
@@ -200,13 +200,30 @@ else
     error "Error: The DNS A-record IP is either invalid or could not be obtained from Cloudflare: '$cf_a_record_ip'"
 fi
 
-# Function to get the published IPv4 via dig
+# Function to get the published IPv4 via dig with retries
 get_published_a_record_ipv4() {
-    dig -t a +short ${DNS_RECORD} | tail -n1 | xargs
+    while [ $retry_attepts -gt 0 ]; do
+        local ip=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
+        # Check if the output is non-empty and a valid IPv4 address
+        if [[ -n "$ip" ]] && [[ $ip =~ $valid_ipv4 ]]; then
+            echo "$ip"
+            return 0
+        fi
+        retries=$((retries - 1))
+        sleep $retry_wait  # Wait before retrying
+    done
+    echo "Invalid IP" # Return an error message after all retries fail
 }
 
 # Assign the published DNS A-record to a variable
 published_a_record_ipv4=$(get_published_a_record_ipv4)
+
+# Check if a valid IP was obtained
+if [[ $published_a_record_ipv4 != "Invalid IP" ]]; then
+    debug "Published DNS A-record IP: $published_a_record_ipv4."
+else
+    error "Error: Failed to obtain a valid IPv4 address from DNS A-record for: ${DNS_RECORD}."
+fi
 
 # Check if published A-record IP has been retrieved successfully and is valid
 if [[ -n "$published_a_record_ipv4" ]] && [[ "$published_a_record_ipv4" =~ $valid_ipv4 ]]; then
@@ -217,16 +234,43 @@ fi
 
 # Get the machine's WAN IP (with multiple fallback options)
 machine_ipv4=$(
-    curl -s https://checkip.amazonaws.com  --max-time $curl_timeout ||
-    curl -s https://api.ipify.org          --max-time $curl_timeout ||
-    curl -s https://ipv4.icanhazip.com/    --max-time $curl_timeout
+    curl -s https://checkip.amazonaws.com --max-time $attempt_timeout ||
+    curl -s https://api.ipify.org         --max-time $attempt_timeout ||
+    curl -s https://ipv4.icanhazip.com    --max-time $attempt_timeout ||
+    curl -s https://ifconfig.me           --max-time $attempt_timeout ||
+    curl -s https://ipinfo.io/ip          --max-time $attempt_timeout ||
+    curl -s https://api.myip.com          --max-time $attempt_timeout ||
+    curl -s https://ip.seeip.org          --max-time $attempt_timeout
+)
+
+# Function to obtain the machine's WAN IPv4
+attempt_service() {
+    debug "Attempting to obtain IPv4 from $1..."
+    local ip=$(curl -s "$1" --max-time "$attempt_timeout")
+    # Validate the obtained IP address
+    if [[ $ip =~ $valid_ipv4 ]]; then
+        echo "$ip"
+    else
+        debug "Invalid IPv4 address received from $1"
+        return 1
+    fi
+}
+
+# Try each service in turn, stopping at the first successful response
+machine_ipv4=$(
+    attempt_service "https://ipv4.icanhazip.com" || \
+    attempt_service "https://api.ipify.org?format=text" || \
+    attempt_service "https://ip4.seeip.org" || \
+    attempt_service "https://ip.tyk.nu" || \
+    attempt_service "https://ipecho.net/plain" || \
+    attempt_service "https://myexternalip.com/raw"
 )
 
 # Check if the machine's public IP has been retrieved sucessfully and is valid
 if [[ -n "$machine_ipv4" ]] && [[ "$machine_ipv4" =~ $valid_ipv4 ]]; then
     debug "Check 12 (of 12) passed. Machine's public (WAN) IP:                   $machine_ipv4."
 else
-    error "Error: IP Address returned was invalid: '$machine_ipv4'"
+    error "Error: Failed to obtain a valid external IPv4 address for the machine."
 fi
 
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
