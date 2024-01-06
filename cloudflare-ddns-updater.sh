@@ -205,8 +205,17 @@ for (( i=0; i<retry_attempts; i++ )); do
     if [ $? -eq 0 ]; then
         # Check if the response is valid JSON
         if echo "$dns_record_json" | jq empty 2>/dev/null; then
-            valid_dns_record_json=true
-            break # Exit loop if valid JSON response is obtained
+            # Check if the response indicates sucess
+            if [ "$(echo "$dns_record_json" | jq -r '.success')" = "true" ]; then
+                valid_dns_record_json=true
+                break # Exit loop if valid JSON response is obtained
+            else
+                # Extract error message if response is not successful
+                error_message=$(echo "$dns_record_json" | jq -r '.errors[]? | .message')
+                debug "Response unsuccessful. Error: $error_message. Retrying in $retry_wait seconds..."
+            fi
+        else
+            debug "Invalid JSON response, retrying in $retry_wait seconds..."
         fi
     else
         debug "Curl command failed whilst retrieving Cloudflare DNS A-record JSON, retrying in $retry_wait seconds..."
@@ -215,7 +224,7 @@ for (( i=0; i<retry_attempts; i++ )); do
     sleep "$retry_wait"
 done
 
-# Check if valid JSON has been obtained sucessfully
+# Check if valid JSON response has been obtained
 if [ "$valid_dns_record_json" = true ]; then
     debug "Check 8  (of 12) passed. Valid JSON response obtained."
 else
@@ -244,15 +253,16 @@ fi
 
 # Function to get the published IPv4 via dig with retries
 get_published_a_record_ipv4() {
-    while [ $retry_attempts -gt 0 ]; do
-        local ip=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
-        # Check if the output is non-empty and a valid IPv4 address
-        if [[ -n "$ip" ]] && [[ $ip =~ $valid_ipv4 ]]; then
+    for (( i=0; i<retry_attempts; i++ )); do
+        local ip=$(dig -t a +short "$DNS_RECORD" | tail -n1 | xargs)
+        # Check if the output is a valid IPv4 address
+        if [[ $ip =~ $valid_ipv4 ]]; then
             echo "$ip"
             return 0
+        else
+            debug "Attempt $((i + 1)) failed to retrieve a valid IPv4 address, retrying in $retry_wait seconds..."
         fi
-        retries=$((retries - 1))
-        sleep $retry_wait  # Wait before retrying
+        sleep "$retry_wait"  # Wait before retrying
     done
     echo "Invalid IP" # Return an error message after all retries fail
 }
