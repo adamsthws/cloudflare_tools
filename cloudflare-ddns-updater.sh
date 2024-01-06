@@ -80,7 +80,7 @@ fi
 
 # Set retry parameters
 attempt_timeout=10   # Seconds before command times out
-retry_attepts=3      # Maximum number of retries
+retry_attempts=3     # Maximum number of retries
 retry_wait=5         # Seconds to wait between retries
 
 # Define valid IPv4 (using Regex)
@@ -141,7 +141,7 @@ fi
 # Attempt to obtain the Cloudflare Zone ID.
 zone_id=""
 zone_id_json=""
-for (( i=0; i<retry_attepts; i++ )); do
+for (( i=0; i<retry_attempts; i++ )); do
     # Hide curl command from debugger (Prevents leaking of API token)
     xtrace_pause
     zone_id_json=$(curl -s -m "$attempt_timeout" \
@@ -177,7 +177,7 @@ fi
 # Attempt to obtain the JSON response for the DNS zone A-record (Via Cloudflare API)
 dns_record_json=""
 valid_dns_record_json=false
-for (( i=0; i<retry_attepts; i++ )); do
+for (( i=0; i<retry_attempts; i++ )); do
     # Hide curl command from debugger (Prevents leaking of API token)
     xtrace_pause
     dns_record_json=$(curl -s -m "$attempt_timeout" \
@@ -229,7 +229,7 @@ fi
 
 # Function to get the published IPv4 via dig with retries
 get_published_a_record_ipv4() {
-    while [ $retry_attepts -gt 0 ]; do
+    while [ $retry_attempts -gt 0 ]; do
         local ip=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
         # Check if the output is non-empty and a valid IPv4 address
         if [[ -n "$ip" ]] && [[ $ip =~ $valid_ipv4 ]]; then
