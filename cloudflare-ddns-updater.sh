@@ -38,7 +38,7 @@ fi
 
 # Set verbose output when DEBUG_LEVEL=2
 if [[ $DEBUG_LEVEL -eq 2 ]]; then
-    echo "Debugging is enabled. This can fill your logs fast."
+    echo "Warning: Debugging is enabled which can quickly fill your logs!"
     set -x
 fi
 
