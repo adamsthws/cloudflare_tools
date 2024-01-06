@@ -116,13 +116,19 @@ for (( i=0; i<retry_attempts; i++ )); do
     xtrace_resume
     # Check if curl command was successful
     if [ $? -eq 0 ]; then
-        # Check if the response is valid JSON
-        if echo "$user_id_json" | jq empty 2>/dev/null; then
-            # If valid, extract the user_id
+        # Check if the response is valid JSON and success field is true
+        if echo "$user_id_json" | jq empty 2>/dev/null && [ "$(echo "$user_id_json" | jq -r '.success')" = "true" ]; then
+            # If valid and successful, extract the user_id
             user_id=$(echo "$user_id_json" | jq -r '.result | .id')
             if [ -n "$user_id" ]; then
                 break # Exit loop if user_id is obtained
+            else
+                debug "User ID not found in the response, retrying in $retry_wait seconds..."
             fi
+        else
+            # Extract error message if available
+            error_message=$(echo "$user_id_json" | jq -r '.errors[]? | .message')
+            debug "Response unsuccessful or invalid JSON. Error: $error_message. Retrying in $retry_wait seconds..."
         fi
     else
         debug "Curl command failed whilst retrieving Cloudflare User ID, retrying in $retry_wait seconds..."
@@ -154,11 +160,20 @@ for (( i=0; i<retry_attempts; i++ )); do
     if [ $? -eq 0 ]; then
         # Check if the response is valid JSON
         if echo "$zone_id_json" | jq empty 2>/dev/null; then
-            # If valid, extract the zone_id
-            zone_id=$(echo "$zone_id_json" | jq -r '.result[0].id')
-            if [ -n "$zone_id" ]; then
-                break # Exit loop if zone_id is obtained
+            # Check if the response indicates success
+            if [ "$(echo "$zone_id_json" | jq -r '.success')" = "true" ]; then
+                # If valid and successful, extract the zone_id
+                zone_id=$(echo "$zone_id_json" | jq -r '.result[0].id')
+                if [ -n "$zone_id" ]; then
+                    break # Exit loop if zone_id is obtained
+                fi
+            else
+                # Extract error message if response is not successful
+                error_message=$(echo "$zone_id_json" | jq -r '.errors[]? | .message')
+                debug "Response unsuccessful. Error: $error_message. Retrying in $retry_wait seconds..."
             fi
+        else
+            debug "Invalid JSON response, retrying in $retry_wait seconds..."
         fi
     else
         debug "Curl command failed whilst retrieving Cloudflare Zone ID, retrying in $retry_wait seconds..."
