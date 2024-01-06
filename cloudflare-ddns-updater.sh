@@ -253,16 +253,15 @@ fi
 
 # Function to get the published IPv4 via dig with retries
 get_published_a_record_ipv4() {
-    for (( i=0; i<retry_attempts; i++ )); do
-        local ip=$(dig -t a +short "$DNS_RECORD" | tail -n1 | xargs)
-        # Check if the output is a valid IPv4 address
-        if [[ $ip =~ $valid_ipv4 ]]; then
+    while [ $retry_attempts -gt 0 ]; do
+        local ip=$(dig -t a +short ${DNS_RECORD} | tail -n1 | xargs)
+        # Check if the output is non-empty and a valid IPv4 address
+        if [[ -n "$ip" ]] && [[ $ip =~ $valid_ipv4 ]]; then
             echo "$ip"
             return 0
-        else
-            debug "Attempt $((i + 1)) failed to retrieve a valid IPv4 address, retrying in $retry_wait seconds..."
         fi
-        sleep "$retry_wait"  # Wait before retrying
+        retries=$((retries - 1))
+        sleep $retry_wait  # Wait before retrying
     done
     echo "Invalid IP" # Return an error message after all retries fail
 }
