@@ -36,26 +36,26 @@ else
     error "Error: failed to source file: $script_dir/.env"
 fi
 
-# Set verbose output when DEBUG_LEVEL=2
-if [[ $DEBUG_LEVEL -eq 2 ]]; then
-    echo "Warning: Debugging is enabled which can quickly fill your logs!"
-    set -x
-fi
+# Function to start xtrace - used for debugging
+xtrace_start() {
+    if [[ $DEBUG_LEVEL -eq 2 ]]; then
+        set -x
+    fi
+}
 
-# Function to prevent the API token from being leaked while debugging
-xtrace_pause() {
+# Function to stop xtrace - used to protect API Token while debugging
+xtrace_stop() {
     if [[ $DEBUG_LEVEL -eq 2 ]]; then
         echo "Executing a curl command to Cloudflare (Output hidden to prevent API token leaking)"
         set +x
     fi
 }
 
-# Function to resume debugging
-xtrace_resume() {
-    if [[ $DEBUG_LEVEL -eq 2 ]]; then
-        set -x
-    fi
-}
+# Turn on xtrace output when DEBUG_LEVEL=2 - enables in-depth debugging
+if [[ $DEBUG_LEVEL -eq 2 ]]; then
+    echo "Warning: Debugging is enabled which can quickly fill your logs!"
+    xtrace_start
+fi
 
 # Check if the script is already running
 if ps ax | grep "$0" | grep -v "$$" | grep bash | grep -v grep > /dev/null; then
@@ -107,13 +107,13 @@ user_id=""
 user_id_json=""
 for (( i=0; i<retry_attempts; i++ )); do
     # Hide curl command from debugger (Prevents leaking of API token)
-    xtrace_pause
+    xtrace_stop
     user_id_json=$(curl -s -m "$attempt_timeout" \
                     -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
                     -H "Authorization: Bearer $API_TOKEN" \
                     -H "Content-Type: application/json")
     # Resume debugging
-    xtrace_resume
+    xtrace_start
     # Check if curl command was successful
     if [ $? -eq 0 ]; then
         # Check if the response is valid JSON and success field is true
@@ -149,13 +149,13 @@ zone_id=""
 zone_id_json=""
 for (( i=0; i<retry_attempts; i++ )); do
     # Hide curl command from debugger (Prevents leaking of API token)
-    xtrace_pause
+    xtrace_stop
     zone_id_json=$(curl -s -m "$attempt_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones?name=$ZONE_NAME&status=active" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $API_TOKEN")
     # Resume debugging
-    xtrace_resume
+    xtrace_start
     # Check if curl command was successful
     if [ $? -eq 0 ]; then
         # Check if the response is valid JSON
@@ -194,13 +194,13 @@ dns_record_json=""
 valid_dns_record_json=false
 for (( i=0; i<retry_attempts; i++ )); do
     # Hide curl command from debugger (Prevents leaking of API token)
-    xtrace_pause
+    xtrace_stop
     dns_record_json=$(curl -s -m "$attempt_timeout" \
                 -X GET "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records?type=A&name=$DNS_RECORD" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $API_TOKEN")
     # Resume debugging
-    xtrace_resume
+    xtrace_start
     # Check if curl command was successful
     if [ $? -eq 0 ]; then
         # Check if the response is valid JSON
@@ -308,14 +308,14 @@ fi
 # Check if the machine's IPv4 is different to the Cloudflare IPv4
 if [ "$cf_a_record_ip" != "$machine_ipv4" ]; then
     # Hide curl command from debugger (Prevents leaking of API token)
-    xtrace_pause
+    xtrace_stop
     # If IPv4 is different, update the A record
     response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone_id/dns_records/$dns_record_a_id" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $API_TOKEN" \
             --data "{\"type\":\"A\",\"name\":\"$DNS_RECORD\",\"content\":\"$machine_ipv4\",\"ttl\":1,\"proxied\":false}")
     # Resume debugging
-    xtrace_resume
+    xtrace_start
     # Check if cURL was sucessfull
     if [ $? -ne 0 ]; then
         error "Error: Curl command failed while attempting to update the DNS A-record IP."
