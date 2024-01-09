@@ -283,7 +283,7 @@ attempt_service() {
     if [[ $ip =~ $valid_ipv4 ]]; then
         echo "$ip"
     else
-        debug "Invalid IPv4 address received from $1"
+        debug "Invalid IP address recieved from $1 when attempting to get machine IPv4"
         return 1
     fi
 }
