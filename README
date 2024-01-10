@@ -7,7 +7,7 @@ It compares the current external (WAN) IP address of the machine with the DNS IP
 If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
 Similar to DuckDNS / No-IP / DynDNS but using your own domain on Cloudflare.
 
-INSTALATION
+INSTALLATION
 Save the script here: /usr/local/bin/******
 Set permissions: "sudo chmod 600 /usr/local/bin/******
 
