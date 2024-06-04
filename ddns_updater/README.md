@@ -24,9 +24,10 @@ To automatically execute it every 10 minuites, add the following cron-job ("sudo
 ## NOTIFICATIONS
 
 When script is executed manually (e.g. from command line)...
-    - Success - Result and IPv4 address is output to terminal.
-    - Error - Result and reason for failure is output to terminal.
+- Success - Result and IPv4 address is output to terminal.
+- Error - Result and reason for failure is output to terminal.
+
 When executed as a cron-job...
-    - Success - Will remain silent / no notification.
-    - Error - The admin will be mailed.
-    - Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
+- Success - Will remain silent / no notification.
+- Error - The admin will be mailed.
+- Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
