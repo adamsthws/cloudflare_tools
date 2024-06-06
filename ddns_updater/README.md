@@ -1,6 +1,6 @@
 # Cloudflare dynamic DNS updater tool
 
-Updates your Cloudflare DNS A record with the external IP of the source machine
+Auto-update your Cloudflare DNS A record.
 
 Author: Adam Matthews
 
@@ -8,7 +8,7 @@ Author: Adam Matthews
 
 - It compares the current external (WAN) IP address of the machine with the DNS IP record of the domain.
 - If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
-- Similar to DuckDNS / No-IP / DynDNS but using your own domain on Cloudflare.
+- Similar to DuckDNS / No-IP / DynDNS but for your own domain on Cloudflare.
 
 ## INSTALLATION
 
