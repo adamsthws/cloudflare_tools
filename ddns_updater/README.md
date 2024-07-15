@@ -6,7 +6,7 @@ Author: Adam Matthews
 
 ## WHAT IT DOES
 
-- It compares the current external (WAN) IP address of the machine with the DNS IP record of the domain.
+- It compares the current external (WAN) IP address with the DNS IP record of the domain.
 - If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
 - Similar to DuckDNS / No-IP / DynDNS but for your own domain on Cloudflare.
 
