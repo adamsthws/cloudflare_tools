@@ -7,7 +7,7 @@ Author: Adam Matthews
 ## WHAT IT DOES
 
 - It compares the current external (WAN) IP address with the DNS IP record of the domain.
-- If different, it updates the domain's DNS A record at cloudflare to relect the machine's IP.
+- If different, it updates the domain's DNS A record at cloudflare to relect the machine's WAN IP.
 - Similar to DuckDNS / No-IP / DynDNS but for your own domain on Cloudflare.
 
 ## INSTALLATION
@@ -30,4 +30,4 @@ When script is executed manually (e.g. from command line)...
 When executed as a cron-job...
 - Success - Will remain silent / no notification.
 - Error - The admin will be mailed.
-- Assuming the machine has the ability to send mail (e.g. via Postfix / External SMTP).
+  (Assuming the machine has the ability to send mail - e.g. via Postfix / External SMTP).
